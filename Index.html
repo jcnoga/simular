@@ -250,6 +250,8 @@
                 
                 <div class="auth-error" id="msg-error-register"></div>
 
+                <!-- NOVO CAMPO DE NOME -->
+                <input type="text" id="reg-name" placeholder="Seu Nome Completo">
                 <input type="email" id="reg-email" placeholder="E-mail">
                 <input type="password" id="reg-password" placeholder="Senha (mín. 6 caracteres)">
                 <input type="password" id="reg-confirm" placeholder="Confirmar Senha">
@@ -424,7 +426,7 @@
                     <h3 style="margin-bottom: 10px; color: #4a5568;">Importar/Exportar</h3>
                     <div class="sync-status" id="firebase-status">
                         <span class="status-dot" id="status-dot"></span>
-                        <span id="status-text">Conectando...</span>
+                        <span id="status-text">Inicializando Nuvem...</span>
                     </div>
                     <br>
                     <input type="file" id="import-file" accept=".json" style="margin-bottom: 10px;">
@@ -1352,27 +1354,6 @@
             ctx.fillText(formatarMoeda(dadosCalculados.lb), margin + 190, canvas.height - margin - lbHeight - 5);
         }
 
-        // Função para carregar dados salvos na inicialização
-        function carregarDadosSalvos() {
-            // Nota: Com autenticação, os dados principais virão do Firestore.
-            // Mantemos isso para funcionalidade offline ou dados temporários.
-            const dadosSalvos = localStorage.getItem('erp_simulafinanc_v1');
-            if (dadosSalvos) {
-                try {
-                    const dados = JSON.parse(dadosSalvos);
-                    preencherFormulario(dados.dados);
-                    dadosFinanceiros = dados.dados;
-                    dadosCalculados = dados.calculados;
-                    atualizarDashboard();
-                    atualizarAlertas();
-                    atualizarTabelaResumo();
-                    atualizarGraficos();
-                } catch (error) {
-                    console.error('Erro ao carregar dados salvos:', error);
-                }
-            }
-        }
-
         // ====================================================================
         // GESTÃO DE UI DE AUTENTICAÇÃO
         // ====================================================================
@@ -1389,6 +1370,7 @@
                 const el = document.getElementById('msg-error-' + viewId);
                 el.textContent = msg;
                 el.style.display = 'block';
+                el.style.color = '#e53e3e';
             },
             showSuccess: (viewId, msg) => {
                 const el = document.getElementById('msg-success-' + viewId);
@@ -1413,23 +1395,27 @@
                 
                 if(!email || !pass) return AuthUI.showError('login', 'Preencha e-mail e senha.');
                 
-                // Feedback visual
                 const btn = document.querySelector('#view-login .btn-auth-primary');
-                const originalText = btn.innerText;
                 btn.innerText = 'Entrando...';
 
-                firebase.auth().signInWithEmailAndPassword(email, pass)
+                // Definir persistência como SESSION (desloga ao fechar aba)
+                firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+                .then(() => {
+                    return firebase.auth().signInWithEmailAndPassword(email, pass);
+                })
                 .catch(err => {
                     AuthUI.showError('login', AppAuth.mapError(err.code));
-                    btn.innerText = originalText;
+                    btn.innerText = 'Entrar';
                 });
             },
             
             register: () => {
+                const name = document.getElementById('reg-name').value;
                 const email = document.getElementById('reg-email').value;
                 const pass = document.getElementById('reg-password').value;
                 const conf = document.getElementById('reg-confirm').value;
                 
+                if(!name) return AuthUI.showError('register', 'Por favor, digite seu nome.');
                 if(!email || !pass) return AuthUI.showError('register', 'Preencha todos os campos.');
                 if(pass !== conf) return AuthUI.showError('register', 'Senhas não conferem.');
                 if(pass.length < 6) return AuthUI.showError('register', 'Senha deve ter no mínimo 6 caracteres.');
@@ -1438,7 +1424,16 @@
                 const originalText = btn.innerText;
                 btn.innerText = 'Criando...';
 
-                firebase.auth().createUserWithEmailAndPassword(email, pass)
+                firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+                .then(() => {
+                    return firebase.auth().createUserWithEmailAndPassword(email, pass);
+                })
+                .then((userCredential) => {
+                    // Atualiza o perfil com o nome do usuário
+                    return userCredential.user.updateProfile({
+                        displayName: name
+                    });
+                })
                 .catch(err => {
                     AuthUI.showError('register', AppAuth.mapError(err.code));
                     btn.innerText = originalText;
@@ -1447,7 +1442,11 @@
             
             loginGoogle: () => {
                 const provider = new firebase.auth.GoogleAuthProvider();
-                firebase.auth().signInWithPopup(provider).catch(err => {
+                firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+                .then(() => {
+                    return firebase.auth().signInWithPopup(provider);
+                })
+                .catch(err => {
                     AuthUI.showError('login', 'Erro Google: ' + err.message);
                 });
             },
@@ -1457,8 +1456,7 @@
                 if(!email) return AuthUI.showError('forgot', 'Digite seu e-mail cadastrado.');
                 
                 firebase.auth().sendPasswordResetEmail(email).then(() => {
-                    AuthUI.showSuccess('forgot', 'Link de recuperação enviado para seu e-mail!');
-                    AuthUI.showError('forgot', ''); // Limpa erro se houver
+                    AuthUI.showSuccess('forgot', 'Link enviado para o e-mail!');
                 }).catch(err => {
                     AuthUI.showError('forgot', AppAuth.mapError(err.code));
                 });
@@ -1506,7 +1504,10 @@
                     // Atualizar UI
                     document.getElementById('login-overlay').style.display = 'none';
                     document.getElementById('app-container').style.display = 'block';
-                    document.getElementById('display-email').textContent = user.email;
+                    
+                    // Exibir Nome do Usuário no Header (com fallback para e-mail)
+                    const displayName = user.displayName || user.email;
+                    document.getElementById('display-email').textContent = displayName;
                     
                     updateSyncStatus('online', 'Conectado');
 
@@ -1604,7 +1605,8 @@
                 },
                 historico: periodosHistorico,
                 lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                email: currentUser.email // Metadado útil
+                email: currentUser.email,
+                name: currentUser.displayName || null // Salva o nome também no banco de dados
             };
 
             db.collection('simulacoes').doc(currentUser.uid).set(payload, { merge: true })
