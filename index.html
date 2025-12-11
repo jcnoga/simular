@@ -95,8 +95,13 @@
             display: flex; gap: 15px; align-items: center;
         }
         
-        .user-email { font-size: 0.9em; color: #4a5568; font-weight: 600; display: none; }
-        @media (min-width: 768px) { .user-email { display: block; } }
+        .user-name { font-size: 1em; color: #4a5568; font-weight: 700; display: none; }
+        .user-email { font-size: 0.8em; color: #718096; font-weight: 400; display: none; }
+        
+        @media (min-width: 768px) { 
+            .user-name { display: block; }
+            .user-email { display: block; } 
+        }
 
         .btn-logout {
             background: #e53e3e; color: white; border: none; padding: 8px 15px;
@@ -203,7 +208,7 @@
             .container { padding: 10px; }
             .header h1 { font-size: 1.8em; }
             .brand-header { position: static; display: block; margin-bottom: 10px; text-align: center; }
-            .user-controls { position: static; justify-content: center; margin-bottom: 10px; }
+            .user-controls { position: static; justify-content: center; margin-bottom: 10px; flex-direction: column; gap: 5px; }
             .kpi-grid { grid-template-columns: 1fr 1fr; }
             .charts-grid { grid-template-columns: 1fr; }
         }
@@ -250,7 +255,7 @@
                 
                 <div class="auth-error" id="msg-error-register"></div>
 
-                <!-- NOVO CAMPO DE NOME -->
+                <!-- CAMPO DE NOME DO USUÁRIO ADICIONADO -->
                 <input type="text" id="reg-name" placeholder="Seu Nome Completo">
                 <input type="email" id="reg-email" placeholder="E-mail">
                 <input type="password" id="reg-password" placeholder="Senha (mín. 6 caracteres)">
@@ -289,8 +294,12 @@
         <div class="header">
             <div class="brand-header">Noga Consultoria</div>
             
+            <!-- Controles do Usuário (Nome + Logout) -->
             <div class="user-controls">
-                <span class="user-email" id="display-email">Carregando...</span>
+                <div style="text-align: right; line-height: 1.2;">
+                    <div class="user-name" id="display-name">Visitante</div>
+                    <div class="user-email" id="display-email"></div>
+                </div>
                 <button class="btn-logout" onclick="AppAuth.logout()">Sair</button>
             </div>
 
@@ -426,7 +435,7 @@
                     <h3 style="margin-bottom: 10px; color: #4a5568;">Importar/Exportar</h3>
                     <div class="sync-status" id="firebase-status">
                         <span class="status-dot" id="status-dot"></span>
-                        <span id="status-text">Inicializando Nuvem...</span>
+                        <span id="status-text">Conectando...</span>
                     </div>
                     <br>
                     <input type="file" id="import-file" accept=".json" style="margin-bottom: 10px;">
@@ -509,12 +518,10 @@
             </div>
             <div class="modal-body">
                 <p id="modalDescription">Descrição aqui.</p>
-                
                 <div class="modal-formula">
                     <strong>🧮 Fórmula:</strong>
                     <code id="modalFormula">Fórmula aqui</code>
                 </div>
-
                 <div class="modal-example">
                     <strong>📝 Exemplo prático:</strong><br>
                     <span id="modalExample">Exemplo aqui.</span>
@@ -584,8 +591,7 @@
                 titulo: "Margem Líquida",
                 descricao: "Porcentagem final de lucro real sobre as vendas. Mostra a saúde financeira verdadeira do negócio.",
                 formula: "(Lucro Líquido ÷ Faturamento) × 100",
-                exemplo: "Margem líquida de 10% significa que a cada R$ 100,00 que entra no caixa, R$ 10,00 é lucro limpo."
-            },
+                exemplo: "10% significa R$ 10 de lucro limpo a cada R$ 100." },
             'mc': {
                 titulo: "Margem de Contribuição",
                 descricao: "É o quanto sobra de cada venda para pagar as despesas fixas (aluguel, salários fixos) e gerar lucro, depois de descontar os custos variáveis.",
@@ -1410,7 +1416,7 @@
             },
             
             register: () => {
-                const name = document.getElementById('reg-name').value;
+                const name = document.getElementById('reg-name').value; // NOME ADICIONADO
                 const email = document.getElementById('reg-email').value;
                 const pass = document.getElementById('reg-password').value;
                 const conf = document.getElementById('reg-confirm').value;
