@@ -160,6 +160,23 @@
         .kpi-value { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
         .kpi-label { font-size: 0.9em; opacity: 0.9; }
 
+        /* Área de Observações */
+        .notes-container textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+        .notes-container textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         /* Alertas */
         .alerts { margin-bottom: 20px; }
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 10px; font-weight: 500; display: flex; align-items: center; }
@@ -214,10 +231,12 @@
         }
         @media print {
             body { background: white; color: black; }
-            .btn, .input-panel, .login-overlay, .user-controls { display: none; }
+            .btn, .input-panel, .login-overlay, .user-controls, .notes-container { display: none; }
             .dashboard, .reports-section, .charts-section { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 20px; }
             .kpi-card { background: white !important; color: black !important; border: 1px solid #ccc; }
             .container { display: block !important; }
+            /* Garantir que as observações apareçam na impressão se estiverem no relatório */
+            #report-notes-display { display: block !important; } 
         }
         .mt-20 { margin-top: 20px; }
     </style>
@@ -458,6 +477,12 @@
                 <div class="kpi-grid" id="kpi-grid">
                     <!-- KPIs serão inseridos dinamicamente -->
                 </div>
+
+                <!-- CAMPO DE OBSERVAÇÕES ADICIONADO -->
+                <div class="notes-container" style="margin-top: 20px;">
+                    <h3 style="color: #4a5568; margin-bottom: 10px; font-size: 1.2em;">📝 Observações do Consultor</h3>
+                    <textarea id="consultant-notes" rows="4" placeholder="Digite aqui suas observações sobre os resultados..."></textarea>
+                </div>
             </div>
         </div>
 
@@ -486,6 +511,12 @@
                         <!-- Dados serão inseridos dinamicamente -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- EXIBIÇÃO DE OBSERVAÇÕES NO RELATÓRIO ADICIONADA -->
+            <div id="report-notes-display" style="margin-top: 20px; padding: 15px; background: #f7fafc; border-left: 4px solid #667eea; border-radius: 4px; display: none;">
+                <h4 style="margin-bottom: 5px; color: #2d3748;">Observações do Consultor:</h4>
+                <p id="report-notes-text" style="color: #4a5568; white-space: pre-wrap; font-style: italic;"></p>
             </div>
         </div>
 
@@ -706,7 +737,10 @@
                 inv: parseFloat(document.getElementById('inv').value) || 0,         // Investimento Total
                 entradas: parseFloat(document.getElementById('entradas').value) || 0, // Entradas no Período
                 saidas: parseFloat(document.getElementById('saidas').value) || 0,   // Saídas no Período
-                unidadesCompradas: parseInt(document.getElementById('unidades-compradas').value) || 0 // Unidades Compradas
+                unidadesCompradas: parseInt(document.getElementById('unidades-compradas').value) || 0, // Unidades Compradas
+                
+                // NOVO CAMPO: Observações do Consultor
+                consultantNotes: document.getElementById('consultant-notes').value || ''
             };
         }
 
@@ -725,6 +759,9 @@
             document.getElementById('entradas').value = dados.entradas || '';
             document.getElementById('saidas').value = dados.saidas || '';
             document.getElementById('unidades-compradas').value = dados.unidadesCompradas || '';
+            
+            // PREENCHER CAMPO DE OBSERVAÇÕES
+            document.getElementById('consultant-notes').value = dados.consultantNotes || '';
         }
 
         // Função principal para calcular todos os indicadores
@@ -929,6 +966,17 @@
                     <td><em>${item.formula}</em></td>
                 `;
             });
+
+            // ATUALIZAR EXIBIÇÃO DE NOTAS NO RELATÓRIO
+            const notes = dadosFinanceiros.consultantNotes;
+            const noteDiv = document.getElementById('report-notes-display');
+            const noteText = document.getElementById('report-notes-text');
+            if (notes && notes.trim() !== "") {
+                noteDiv.style.display = 'block';
+                noteText.textContent = notes;
+            } else {
+                noteDiv.style.display = 'none';
+            }
         }
 
         // Função para carregar dados de exemplo
@@ -946,7 +994,8 @@
                 inv: 100000,
                 entradas: 160000,
                 saidas: 140000,
-                unidadesCompradas: 1000
+                unidadesCompradas: 1000,
+                consultantNotes: "Análise preliminar: A empresa apresenta boa saúde financeira com margem líquida positiva. Atenção para o giro de estoque."
             };
 
             preencherFormulario(dadosExemplo);
@@ -957,9 +1006,15 @@
         function limparFormulario() {
             if (confirm('Tem certeza que deseja limpar todos os dados?')) {
                 document.getElementById('financial-form').reset();
+                document.getElementById('consultant-notes').value = ''; // Limpar notas também
                 document.getElementById('kpi-grid').innerHTML = '';
                 document.getElementById('alerts-container').innerHTML = '';
                 document.querySelector('#summary-table tbody').innerHTML = '';
+                
+                // Limpar notas do relatório
+                document.getElementById('report-notes-display').style.display = 'none';
+                document.getElementById('report-notes-text').textContent = '';
+
                 limparGraficos();
                 
                 // Sincroniza estado limpo (mas não deleta histórico para segurança, a menos que o usuário exclua os cards)
@@ -1640,17 +1695,26 @@
 
             // Adicionar event listeners para cálculo automático
             const inputs = document.querySelectorAll('#financial-form input');
+            // ADICIONADO LISTENER PARA CAMPO DE NOTAS
+            const notes = document.querySelector('#consultant-notes');
             let timeout;
+
+            const triggerCalc = () => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    // Se não tiver fv, mas tiver nota, ainda queremos salvar a nota? 
+                    // Sim, melhor salvar.
+                    calcularIndicadores();
+                }, 800);
+            };
+
             inputs.forEach(input => {
-                input.addEventListener('input', function() {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => {
-                        if (document.getElementById('fv').value) {
-                            calcularIndicadores();
-                        }
-                    }, 500);
-                });
+                input.addEventListener('input', triggerCalc);
             });
+            
+            if(notes) {
+                notes.addEventListener('input', triggerCalc);
+            }
             
             window.addEventListener('online', () => updateSyncStatus('online', 'Online'));
             window.addEventListener('offline', () => updateSyncStatus('offline', 'Offline'));
