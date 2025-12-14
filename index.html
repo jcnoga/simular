@@ -1,1724 +1,1096 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noga Consultoria - Simulador Financeiro</title>
+    <title>Simulador Estratégico + Relatório Detalhado</title>
     
-    <!-- Firebase SDKs (Compatibilidade v8 para uso simples via CDN) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Firebase SDKs (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
     <style>
-        /* Reset e configurações básicas */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; color: #1f2937; }
+        .card { background: white; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        .input-label { font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 4px; display: block; }
+        .input-field { width: 100%; padding: 0.6rem; border: 1px solid #d1d5db; border-radius: 0.5rem; transition: all 0.2s; }
+        .input-field:focus { outline: none; border-color: #2563eb; ring: 2px; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        
+        .result-value { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.025em; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-            line-height: 1.6;
+        /* Tooltip Moderno */
+        .tooltip-btn { cursor: pointer; color: #3b82f6; margin-left: 6px; transition: color 0.2s; }
+        .tooltip-btn:hover { color: #1d4ed8; }
+        .tooltip-content { 
+            display: none; position: absolute; background-color: #1e293b; color: #f8fafc; 
+            padding: 12px; border-radius: 8px; font-size: 0.85rem; width: 280px; z-index: 50; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            line-height: 1.5; border: 1px solid #334155;
         }
+        .tooltip-wrapper { position: relative; display: inline-block; }
+        
+        /* Abas */
+        .tab-btn { padding: 12px 24px; font-weight: 600; border-bottom: 3px solid transparent; color: #6b7280; transition: all 0.3s; background: transparent; }
+        .tab-btn:hover { color: #1d4ed8; background-color: rgba(239, 246, 255, 0.5); }
+        .tab-btn.active { color: #1e40af; border-bottom-color: #1e40af; background-color: #eff6ff; border-radius: 8px 8px 0 0; }
+        .tab-content { display: none; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- TELA DE LOGIN (OVERLAY) --- */
-        .login-overlay {
+        /* Barra de Progresso */
+        .progress-container { width: 100%; background-color: #e2e8f0; border-radius: 9999px; height: 14px; overflow: hidden; margin-top: 8px; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); }
+        .progress-bar { height: 100%; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent); background-size: 1rem 1rem; }
+
+        /* Estilos de Autenticação */
+        #auth-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex; justify-content: center; align-items: center; z-index: 2000;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
         }
-
-        .login-box {
-            background: white; padding: 40px; border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 90%; max-width: 400px; text-align: center;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .login-view { display: none; animation: fadeIn 0.3s ease; }
-        .login-view.active { display: block; }
-
-        .login-box h2 { color: #4a5568; margin-bottom: 10px; }
-        .login-box p { color: #718096; margin-bottom: 20px; font-size: 0.9em; }
-
-        .login-box input {
-            width: 100%; padding: 12px; margin-bottom: 15px;
-            border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;
-        }
-
-        .login-box button {
-            width: 100%; padding: 12px; margin-bottom: 10px;
-            border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        /* Botões de Login */
-        .btn-auth-primary { background: #667eea; color: white; }
-        .btn-auth-primary:hover { background: #5a67d8; transform: translateY(-2px); }
-        
-        .btn-auth-google { background: #db4437; color: white; }
-        .btn-auth-google:hover { background: #c53929; transform: translateY(-2px); }
-
-        .btn-link { 
-            background: none; color: #667eea; font-size: 0.9em; text-decoration: underline; 
-            padding: 5px; margin: 0; width: auto; display: inline-block; 
-        }
-        .btn-link:hover { transform: none; color: #4c51bf; }
-
-        .divider { margin: 15px 0; border-top: 1px solid #e2e8f0; position: relative; }
-        .divider span { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px; color: #a0aec0; font-size: 0.8em; }
-
-        .auth-error { color: #e53e3e; margin-bottom: 15px; font-size: 0.9em; min-height: 20px; display: none; }
-        .auth-success { color: green; margin-bottom: 15px; font-size: 0.9em; display: none; }
-
-        /* --- CONTAINER PRINCIPAL (App) --- */
-        .container {
-            max-width: 1400px; margin: 0 auto; padding: 20px;
-            display: none; /* Escondido até login */
-        }
-
-        /* Header e User Info */
-        .header {
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-            border-radius: 15px; padding: 20px; margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); text-align: center; position: relative;
-        }
-
-        .brand-header {
-            position: absolute; left: 30px; top: 30px;
-            font-size: 1.2em; font-weight: 700; color: #4a5568; letter-spacing: 0.5px;
-        }
-
-        /* Controles de Usuário no Header */
-        .user-controls {
-            position: absolute; right: 30px; top: 30px;
-            display: flex; gap: 15px; align-items: center;
-        }
-        
-        .user-name { font-size: 1em; color: #4a5568; font-weight: 700; display: none; }
-        .user-email { font-size: 0.8em; color: #718096; font-weight: 400; display: none; }
-        
-        @media (min-width: 768px) { 
-            .user-name { display: block; }
-            .user-email { display: block; } 
-        }
-
-        .btn-logout {
-            background: #e53e3e; color: white; border: none; padding: 8px 15px;
-            border-radius: 5px; cursor: pointer; font-size: 0.8em; font-weight: bold;
-        }
-        .btn-logout:hover { background: #c53030; }
-
-        .header h1 { color: #4a5568; margin-bottom: 10px; font-size: 2.2em; }
-        .header p { color: #718096; font-size: 1.1em; }
-
-        /* Layout principal */
-        .main-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
-
-        /* Painéis e Cards */
-        .input-panel, .dashboard, .reports-section, .charts-section, .periods-section, .help-section {
-            background: rgba(255, 255, 255, 0.95); border-radius: 15px; padding: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); margin-bottom: 20px;
-        }
-        
-        .input-panel { height: fit-content; margin-bottom: 0; }
-        
-        h2 { color: #2d3748; margin-bottom: 20px; font-size: 1.5em; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
-        .dashboard h2, .reports-section h2 { font-size: 1.8em; }
-
-        /* Formulário */
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: flex; align-items: center; margin-bottom: 5px; font-weight: 600; color: #4a5568; font-size: 14px; }
-        .tooltip { margin-left: 8px; cursor: help; color: #667eea; font-weight: bold; position: relative; }
-        .tooltip:hover::after {
-            content: attr(data-tooltip); position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%);
-            background: #333; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 1000; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .form-group input { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease; }
-        .form-group input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
-
-        /* Botões App */
-        .btn {
-            background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; padding: 10px 16px;
-            border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.3s ease; margin-right: 8px; margin-bottom: 8px;
-        }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-        .btn-success { background: linear-gradient(45deg, #38a169, #2f855a); }
-        .btn-danger { background: linear-gradient(45deg, #e53e3e, #c53030); }
-        .btn-warning { background: linear-gradient(45deg, #ed8936, #dd6b20); }
-
-        /* KPI Grid */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .kpi-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px;
-            border-radius: 12px; text-align: center; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); transition: transform 0.3s ease; position: relative; cursor: pointer;
-        }
-        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
-        .kpi-card::after { content: 'ℹ️'; position: absolute; top: 10px; right: 10px; font-size: 12px; opacity: 0.7; }
-        .kpi-card.negative { background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); }
-        .kpi-card.warning { background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); }
-        .kpi-value { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
-        .kpi-label { font-size: 0.9em; opacity: 0.9; }
-
-        /* Área de Observações */
-        .notes-container textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 100px;
-            transition: border-color 0.3s;
-        }
-        .notes-container textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        /* Alertas */
-        .alerts { margin-bottom: 20px; }
-        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 10px; font-weight: 500; display: flex; align-items: center; }
-        .alert-danger { background-color: #fed7d7; border: 1px solid #fc8181; color: #c53030; }
-        .alert-warning { background-color: #fed7aa; border: 1px solid #f6ad55; color: #c05621; }
-        .alert-info { background-color: #bee3f8; border: 1px solid #63b3ed; color: #2c5282; }
-
-        /* Tabelas e Gráficos */
-        .table-container { overflow-x: auto; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: linear-gradient(45deg, #667eea, #764ba2); color: white; font-weight: 600; }
-        tr:hover { background-color: #f7fafc; }
-
-        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .chart-container { text-align: center; }
-        .chart-container h3 { margin-bottom: 15px; color: #4a5568; }
-        canvas { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
-
-        .periods-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
-        .period-card { background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.3s ease; }
-        .period-card:hover { border-color: #667eea; transform: translateY(-2px); }
-
-        /* Modal Info */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
-        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); position: relative; animation: fadeIn 0.3s ease; }
-        .modal-header { border-bottom: 2px solid #667eea; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .modal-title { font-size: 1.5em; color: #2d3748; font-weight: bold; }
-        .close-modal { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #718096; transition: color 0.2s; }
-        .close-modal:hover { color: #e53e3e; }
-        .modal-body p { color: #4a5568; font-size: 1.1em; line-height: 1.6; margin-bottom: 15px; }
-        .modal-formula { background-color: #fff7ed; border-left: 4px solid #ed8936; padding: 12px; margin-bottom: 15px; border-radius: 6px; color: #2d3748; }
-        .modal-formula code { display: block; margin-top: 6px; font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 1.1em; color: #c05621; }
-        .modal-example { background-color: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea; font-size: 0.95em; color: #2d3748; }
-
-        .sync-status { font-size: 12px; margin-top: 10px; padding: 8px; border-radius: 4px; background: #f7fafc; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 6px; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #cbd5e0; display: inline-block; }
-        .status-dot.online { background-color: #48bb78; box-shadow: 0 0 5px #48bb78; }
-        .status-dot.syncing { background-color: #ecc94b; animation: pulse 1s infinite; }
-        
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-
-        @media (max-width: 1024px) { .main-layout { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
-        @media (max-width: 768px) {
-            .container { padding: 10px; }
-            .header h1 { font-size: 1.8em; }
-            .brand-header { position: static; display: block; margin-bottom: 10px; text-align: center; }
-            .user-controls { position: static; justify-content: center; margin-bottom: 10px; flex-direction: column; gap: 5px; }
-            .kpi-grid { grid-template-columns: 1fr 1fr; }
-            .charts-grid { grid-template-columns: 1fr; }
-        }
-        @media print {
-            body { background: white; color: black; }
-            .btn, .input-panel, .login-overlay, .user-controls, .notes-container { display: none; }
-            .dashboard, .reports-section, .charts-section { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 20px; }
-            .kpi-card { background: white !important; color: black !important; border: 1px solid #ccc; }
-            .container { display: block !important; }
-            /* Garantir que as observações apareçam na impressão se estiverem no relatório */
-            #report-notes-display { display: block !important; } 
-        }
-        .mt-20 { margin-top: 20px; }
+        .auth-box { width: 100%; max-width: 400px; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .hidden { display: none !important; }
+        .pix-btn.selected { border-color: #2563eb; background-color: #eff6ff; color: #1e40af; }
     </style>
 </head>
-<body>
+<body class="pb-16 text-gray-800" onclick="closeAllTooltips()">
 
-    <!-- TELA DE AUTENTICAÇÃO (OVERLAY) -->
-    <div class="login-overlay" id="login-overlay">
-        <div class="login-box">
+    <!-- TELA DE LOGIN / CADASTRO (Bloqueante) -->
+    <div id="auth-screen">
+        <div class="auth-box fade-in">
+            <div class="text-center mb-6">
+                <i class="fas fa-chart-line text-4xl text-blue-600 mb-2"></i>
+                <h2 class="text-2xl font-bold text-gray-800">Simulador Estratégico</h2>
+                <p class="text-sm text-gray-500">Faça login para acessar a ferramenta</p>
+            </div>
+
+            <!-- Formulário de Login -->
+            <div id="login-form">
+                <div class="space-y-4">
+                    <div>
+                        <label class="input-label">E-mail</label>
+                        <input type="email" id="email-login" class="input-field" placeholder="seu@email.com">
+                    </div>
+                    <div>
+                        <label class="input-label">Senha</label>
+                        <input type="password" id="senha-login" class="input-field" placeholder="******">
+                        <div class="text-right mt-1">
+                            <button onclick="toggleAuthView('forgot')" class="text-xs text-blue-600 hover:underline">Esqueci minha senha</button>
+                        </div>
+                    </div>
+                    <button onclick="fazerLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">
+                        Entrar
+                    </button>
+                    
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-300"></div>
+                        <span class="flex-shrink mx-4 text-gray-400 text-xs">OU</span>
+                        <div class="flex-grow border-t border-gray-300"></div>
+                    </div>
+
+                    <button onclick="googleLogin()" class="w-full border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-bold py-2 rounded transition flex items-center justify-center">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 mr-2" alt="Google">
+                        Entrar com Google
+                    </button>
+                </div>
+                <p class="text-center text-sm mt-6 text-gray-600">
+                    Não tem conta? <button onclick="toggleAuthView('register')" class="text-blue-600 font-bold hover:underline">Cadastre-se</button>
+                </p>
+            </div>
+
+            <!-- Formulário de Cadastro -->
+            <div id="register-form" class="hidden">
+                <div class="space-y-4">
+                    <div>
+                        <label class="input-label">Nome Completo</label>
+                        <input type="text" id="nome-cadastro" class="input-field" placeholder="Seu nome">
+                    </div>
+                    <div>
+                        <label class="input-label">E-mail</label>
+                        <input type="email" id="email-cadastro" class="input-field" placeholder="seu@email.com">
+                    </div>
+                    <div>
+                        <label class="input-label">Senha</label>
+                        <input type="password" id="senha-cadastro" class="input-field" placeholder="Crie uma senha forte">
+                    </div>
+                    <button onclick="fazerCadastro()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded transition">
+                        Criar Conta
+                    </button>
+                </div>
+                <p class="text-center text-sm mt-6 text-gray-600">
+                    Já tem conta? <button onclick="toggleAuthView('login')" class="text-blue-600 font-bold hover:underline">Faça Login</button>
+                </p>
+            </div>
+
+            <!-- Recuperação de Senha -->
+            <div id="forgot-form" class="hidden">
+                <div class="text-center mb-4">
+                    <p class="text-sm text-gray-600">Digite seu e-mail para receber um link de redefinição de senha.</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="input-label">E-mail cadastrado</label>
+                        <input type="email" id="email-recuperacao" class="input-field" placeholder="seu@email.com">
+                    </div>
+                    <button onclick="recuperarSenha()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded transition">
+                        Enviar Link
+                    </button>
+                </div>
+                <p class="text-center text-sm mt-6 text-gray-600">
+                    <button onclick="toggleAuthView('login')" class="text-gray-500 hover:text-gray-800 font-bold">Voltar ao Login</button>
+                </p>
+            </div>
             
-            <!-- View: Login -->
-            <div id="view-login" class="login-view active">
-                <h2>🔐 Noga Consultoria</h2>
-                <p>Acesse seu Simulador Financeiro</p>
-                
-                <div class="auth-error" id="msg-error-login"></div>
-                
-                <input type="email" id="login-email" placeholder="E-mail" onkeypress="handleEnter(event, AppAuth.login)">
-                <input type="password" id="login-password" placeholder="Senha" onkeypress="handleEnter(event, AppAuth.login)">
-                
-                <button class="btn-auth-primary" onclick="AppAuth.login()">Entrar</button>
-                <div class="divider"><span>OU</span></div>
-                <button class="btn-auth-google" onclick="AppAuth.loginGoogle()">Entrar com Google</button>
-                
-                <div style="margin-top: 15px;">
-                    <button class="btn-link" onclick="AuthUI.show('forgot')">Esqueci minha senha</button> <br>
-                    <button class="btn-link" onclick="AuthUI.show('register')">Não tem conta? Cadastre-se</button>
-                </div>
-            </div>
-
-            <!-- View: Cadastro -->
-            <div id="view-register" class="login-view">
-                <h2>📝 Criar Conta</h2>
-                <p>Preencha os dados abaixo</p>
-                
-                <div class="auth-error" id="msg-error-register"></div>
-
-                <!-- CAMPO DE NOME DO USUÁRIO ADICIONADO -->
-                <input type="text" id="reg-name" placeholder="Seu Nome Completo">
-                <input type="email" id="reg-email" placeholder="E-mail">
-                <input type="password" id="reg-password" placeholder="Senha (mín. 6 caracteres)">
-                <input type="password" id="reg-confirm" placeholder="Confirmar Senha">
-                
-                <button class="btn-auth-primary" onclick="AppAuth.register()">Cadastrar</button>
-                
-                <div style="margin-top: 15px;">
-                    <button class="btn-link" onclick="AuthUI.show('login')">Já tenho conta. Entrar</button>
-                </div>
-            </div>
-
-            <!-- View: Esqueci Senha -->
-            <div id="view-forgot" class="login-view">
-                <h2>🔑 Recuperar Senha</h2>
-                <p>Enviaremos um link para seu e-mail</p>
-                
-                <div class="auth-success" id="msg-success-forgot"></div>
-                <div class="auth-error" id="msg-error-forgot"></div>
-
-                <input type="email" id="forgot-email" placeholder="Seu E-mail de cadastro">
-                
-                <button class="btn-auth-primary" onclick="AppAuth.resetPassword()">Enviar Link</button>
-                
-                <div style="margin-top: 15px;">
-                    <button class="btn-link" onclick="AuthUI.show('login')">Voltar para Login</button>
-                </div>
-            </div>
-
+            <div id="auth-msg" class="mt-4 text-center text-sm font-semibold hidden"></div>
         </div>
     </div>
 
-    <!-- SISTEMA PRINCIPAL -->
-    <div class="container" id="app-container">
+    <!-- CONTEÚDO DA APLICAÇÃO (Inicialmente Oculto) -->
+    <div id="app-content" class="hidden">
+        
         <!-- Header -->
-        <div class="header">
-            <div class="brand-header">Noga Consultoria</div>
+        <header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 shadow-lg">
+            <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight"><i class="fas fa-chart-line mr-3 text-blue-400"></i>Simulador Estratégico</h1>
+                    <p class="text-slate-300 text-sm mt-1">Análise Fiscal Inteligente para Varejo (Simples vs Presumido)</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400">Logado como</p>
+                        <p class="font-bold text-sm" id="user-display-name">Usuário</p>
+                    </div>
+                    <button onclick="fazerLogout()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded transition">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navegação -->
+        <div class="max-w-6xl mx-auto mt-8 px-4">
+            <div class="flex border-b border-gray-300 space-x-2 overflow-x-auto">
+                <button onclick="switchTab('calc')" id="btn-calc" class="tab-btn active whitespace-nowrap">
+                    <i class="fas fa-calculator mr-2"></i> Simulador & Ponto de Equilíbrio
+                </button>
+                <button onclick="switchTab('extras')" id="btn-extras" class="tab-btn whitespace-nowrap">
+                    <i class="fas fa-file-contract mr-2"></i> Obrigações & Relatório PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTEÚDO ABA 1: CALCULADORA -->
+        <div id="tab-calc" class="tab-content active max-w-6xl mx-auto mt-6 px-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- COLUNA 1: INPUTS -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Faturamento -->
+                    <div class="card p-6 border-l-4 border-blue-500">
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b flex justify-between items-center">
+                            <span>1. Receita</span>
+                            <i class="fas fa-cash-register text-blue-200"></i>
+                        </h2>
+                        
+                        <!-- Opção de Base de Cálculo -->
+                        <div class="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <label class="input-label mb-2 text-blue-800">Calcular <strong>impostos</strong> sobre:</label>
+                            <div class="flex space-x-3">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="radio" name="baseCalculo" value="real" checked onchange="calcular()" class="accent-blue-600 w-4 h-4">
+                                    <span class="text-sm font-semibold">Valor Real</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="radio" name="baseCalculo" value="declarado" onchange="calcular()" class="accent-blue-600 w-4 h-4">
+                                    <span class="text-sm font-semibold">Valor Declarado</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 relative">
+                            <div class="flex items-center justify-between">
+                                <label class="input-label">Faturamento Mensal (Real)</label>
+                                <i class="fas fa-circle-info tooltip-btn" onclick="toggleTooltip(event, 'tip-fat')"></i>
+                            </div>
+                            <div id="tip-fat" class="tooltip-content top-0 right-0 translate-x-full ml-2">
+                                O valor total bruto das vendas reais. Custos e lucros serão baseados neste valor.
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-gray-400">R$</span>
+                                <input type="number" id="faturamentoMensal" class="input-field pl-10" value="50000" oninput="syncFaturamento()">
+                            </div>
+                        </div>
+
+                        <!-- Novo Campo: Faturamento Declarado -->
+                        <div class="mb-5 relative">
+                            <div class="flex items-center justify-between">
+                                <label class="input-label text-blue-700">Faturamento Mensal Declarado</label>
+                                <i class="fas fa-circle-info tooltip-btn" onclick="toggleTooltip(event, 'tip-fat-dec')"></i>
+                            </div>
+                            <div id="tip-fat-dec" class="tooltip-content top-0 right-0 translate-x-full ml-2">
+                                Valor para fins de nota fiscal. Se selecionada a opção acima, os impostos serão calculados sobre este valor.
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-gray-400">R$</span>
+                                <input type="number" id="faturamentoDeclarado" class="input-field pl-10 bg-blue-50 border-blue-200" value="50000" oninput="calcular()">
+                            </div>
+                        </div>
+
+                        <div class="mb-5 relative">
+                            <div class="flex items-center justify-between">
+                                <label class="input-label">RBT12 (Base de Cálculo)</label>
+                                <i class="fas fa-circle-info tooltip-btn" onclick="toggleTooltip(event, 'tip-rbt')"></i>
+                            </div>
+                            <div id="tip-rbt" class="tooltip-content top-0 right-0 translate-x-full ml-2">
+                                Acumulado 12 meses. Se deixar vazio, será calculado automaticamente com base no faturamento escolhido para impostos.
+                            </div>
+                            <input type="number" id="rbt12" class="input-field" placeholder="Automático" oninput="calcular()">
+                        </div>
+
+                        <div class="mb-2 relative">
+                            <div class="flex items-center justify-between">
+                                <label class="input-label">Margem Bruta (%)</label>
+                                <i class="fas fa-circle-info tooltip-btn" onclick="toggleTooltip(event, 'tip-margem')"></i>
+                            </div>
+                            <div id="tip-margem" class="tooltip-content top-0 right-0 translate-x-full ml-2">
+                                Quanto % sobra do preço de venda após tirar o custo do produto. Baseado no faturamento real.
+                            </div>
+                            <input type="number" id="margemBruta" class="input-field" value="40" oninput="calcular()">
+                        </div>
+                    </div>
+
+                    <!-- Custos -->
+                    <div class="card p-6 border-l-4 border-indigo-500">
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b flex justify-between items-center">
+                            <span>2. Estrutura</span>
+                            <i class="fas fa-building text-indigo-200"></i>
+                        </h2>
+                        
+                        <div class="mb-5 relative">
+                            <div class="flex items-center justify-between">
+                                <label class="input-label">Despesas Fixas (R$)</label>
+                                <i class="fas fa-circle-info tooltip-btn" onclick="toggleTooltip(event, 'tip-desp')"></i>
+                            </div>
+                            <div id="tip-desp" class="tooltip-content top-0 right-0 translate-x-full ml-2">
+                                Aluguel, luz, internet, contador, sistema. (NÃO coloque salários aqui).
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-gray-400">R$</span>
+                                <input type="number" id="despesasFixas" class="input-field pl-10" value="5000" oninput="calcular()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="input-label">Funcionários</label>
+                                <input type="number" id="numFuncionarios" class="input-field" value="2" oninput="calcular()">
+                            </div>
+                            <div class="relative">
+                                <div class="flex items-center justify-between">
+                                    <label class="input-label">Salário Médio</label>
+                                    <i class="fas fa-circle-info tooltip-btn" onclick="toggleTooltip(event, 'tip-sal')"></i>
+                                </div>
+                                <div id="tip-sal" class="tooltip-content top-0 left-0 -translate-x-full mr-2">
+                                    Valor na carteira. O sistema adiciona automaticamente encargos (FGTS, Férias, etc).
+                                </div>
+                                <input type="number" id="salarioMedio" class="input-field" value="1800" oninput="calcular()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parâmetros Avançados -->
+                    <div class="card p-6 border-l-4 border-slate-500 bg-slate-50">
+                        <div class="flex justify-between cursor-pointer" onclick="document.getElementById('advanced-opts').classList.toggle('hidden')">
+                            <h2 class="text-sm font-bold text-gray-600 uppercase tracking-wide">Ajustes Finos (Opcional)</h2>
+                            <i class="fas fa-chevron-down text-gray-400"></i>
+                        </div>
+                        <div id="advanced-opts" class="hidden mt-4">
+                            <div class="mb-3">
+                                <label class="input-label text-xs">ICMS Efetivo Presumido (%)</label>
+                                <input type="number" id="icmsPresumido" class="input-field text-sm" value="4" step="0.1" oninput="calcular()">
+                            </div>
+                            <div class="mb-3">
+                                <label class="input-label text-xs">INSS Patronal Presumido (%)</label>
+                                <input type="number" id="encargosPatronais" class="input-field text-sm" value="28" oninput="calcular()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COLUNA 2 E 3: RESULTADOS -->
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <!-- PONTO DE EQUILÍBRIO -->
+                    <div class="card p-6 border-l-4 border-teal-500 bg-gradient-to-br from-white to-teal-50 shadow-md">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-xl font-bold text-teal-900 flex items-center">
+                                    <i class="fas fa-scale-balanced mr-2 text-teal-600"></i> Ponto de Equilíbrio
+                                </h3>
+                                <p class="text-sm text-teal-700">Quanto preciso vender para começar a lucrar?</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-gray-500 uppercase font-bold">Meta Mínima</p>
+                                <p class="text-2xl font-extrabold text-teal-700" id="valPontoEquilibrio">R$ 0,00</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <div class="flex justify-between text-xs font-semibold mb-1 text-gray-600">
+                                <span id="statusPE">Calculando saúde financeira...</span>
+                                <span id="percPE">0%</span>
+                            </div>
+                            <div class="progress-container">
+                                <div id="progressBarPE" class="progress-bar bg-teal-500" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-2 text-xs text-gray-500 flex items-center">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <span>Considera seus custos fixos divididos pela margem de contribuição.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparativo -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Simples -->
+                        <div class="card p-6 border-t-4 border-green-500 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 -mt-2 -mr-2 bg-green-100 w-16 h-16 rounded-full opacity-50"></div>
+                            <h3 class="text-lg font-bold text-green-800 mb-3 relative z-10">Simples Nacional</h3>
+                            
+                            <div class="space-y-3 relative z-10">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Imposto (DAS)</span>
+                                    <span class="result-value text-green-700" id="resSimplesImposto">R$ 0,00</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Alíquota Real</span>
+                                    <span class="text-xs font-bold bg-green-100 text-green-800 px-2 py-1 rounded-full" id="resSimplesAliq">0.00%</span>
+                                </div>
+                                <div class="pt-3 border-t border-green-100">
+                                    <p class="text-xs text-gray-500 uppercase font-bold mb-1">Lucro Líquido Estimado</p>
+                                    <div class="flex justify-between items-baseline">
+                                        <span class="text-2xl font-bold text-green-700" id="resSimplesLucro">R$ 0,00</span>
+                                        <span class="text-xs font-bold text-green-600" id="resSimplesMargem">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Presumido -->
+                        <div class="card p-6 border-t-4 border-orange-500 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 -mt-2 -mr-2 bg-orange-100 w-16 h-16 rounded-full opacity-50"></div>
+                            <h3 class="text-lg font-bold text-orange-800 mb-3 relative z-10">Lucro Presumido</h3>
+                            
+                            <div class="space-y-3 relative z-10">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Impostos Totais</span>
+                                    <span class="result-value text-orange-700" id="resPresumidoImposto">R$ 0,00</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Custo Extra (INSS)</span>
+                                    <span class="text-xs font-bold bg-orange-100 text-orange-800 px-2 py-1 rounded-full" id="resPresumidoCPP">R$ 0,00</span>
+                                </div>
+                                <div class="pt-3 border-t border-orange-100">
+                                    <p class="text-xs text-gray-500 uppercase font-bold mb-1">Lucro Líquido Estimado</p>
+                                    <div class="flex justify-between items-baseline">
+                                        <span class="text-2xl font-bold text-orange-700" id="resPresumidoLucro">R$ 0,00</span>
+                                        <span class="text-xs font-bold text-orange-600" id="resPresumidoMargem">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico e Recomendação -->
+                    <div class="card p-6">
+                        <div id="recomendacaoBox" class="p-4 mb-6 rounded-lg text-center border-2 shadow-sm transition-all">
+                            <h3 class="text-2xl font-bold" id="recomendacaoTitulo">Analisando...</h3>
+                            <p id="recomendacaoTexto" class="mt-2">Insira os dados para obter uma recomendação.</p>
+                        </div>
+                        <div class="h-64 w-full">
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <h4 class="font-bold text-gray-700 mb-2">Composição do Presumido</h4>
+                                <ul class="space-y-1 text-gray-600">
+                                    <li class="flex justify-between"><span>PIS/COFINS:</span> <span id="detPisCofins">R$ 0</span></li>
+                                    <li class="flex justify-between"><span>IRPJ/CSLL:</span> <span id="detIrCsll">R$ 0</span></li>
+                                    <li class="flex justify-between"><span>ICMS (Est.):</span> <span id="detIcms">R$ 0</span></li>
+                                    <li class="flex justify-between font-bold text-orange-600"><span>INSS Patronal:</span> <span id="detInssPatronal">R$ 0</span></li>
+                                </ul>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex flex-col justify-center">
+                                <p class="text-xs font-bold text-blue-800 uppercase mb-1">Análise de Futuro</p>
+                                <p class="text-sm text-gray-600">O Simples deixaria de valer a pena se você faturasse acima de:</p>
+                                <p class="text-2xl font-bold text-blue-700 mt-1" id="pontoViradaVal">...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTEÚDO ABA 2: RELATÓRIO E OBRIGAÇÕES -->
+        <div id="tab-extras" class="tab-content max-w-6xl mx-auto mt-6 px-4">
             
-            <!-- Controles do Usuário (Nome + Logout) -->
-            <div class="user-controls">
-                <div style="text-align: right; line-height: 1.2;">
-                    <div class="user-name" id="display-name">Visitante</div>
-                    <div class="user-email" id="display-email"></div>
+            <div class="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-lg p-8 text-white shadow-lg mb-8 flex flex-col md:flex-row items-center justify-between">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-2xl font-bold mb-2">Baixe seu Relatório de Consultoria</h2>
+                    <p class="text-blue-100 max-w-xl">
+                        Gere um PDF detalhado com os cálculos que você acabou de fazer, explicações didáticas e exemplos práticos para entender para onde vai o dinheiro.
+                    </p>
                 </div>
-                <button class="btn-logout" onclick="AppAuth.logout()">Sair</button>
+                <button onclick="gerarRelatorioDetalhado()" class="bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 px-6 rounded-lg shadow-lg transition transform hover:scale-105 flex items-center">
+                    <i class="fas fa-file-pdf mr-2 text-xl"></i> Baixar Relatório PDF
+                </button>
             </div>
 
-            <h1>🏪 Simulador Financeiro</h1>
-            <p>Sistema de Gestão Financeira Simplificado para Lojas</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Coluna da Esquerda -->
+                <div class="space-y-6">
+                    <div class="card p-6 border-l-4 border-red-500">
+                        <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Custo Trabalhista Real
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Muitos acham que funcionário custa só o salário. Veja o custo real estimado (sobre R$ 1.000 de salário):
+                        </p>
+                        <div class="bg-gray-50 rounded p-4 text-sm">
+                            <div class="flex justify-between border-b pb-2 mb-2 font-bold">
+                                <span>Item</span> <span>Custo Extra</span>
+                            </div>
+                            <div class="flex justify-between mb-1"><span>FGTS (8%)</span> <span>R$ 80,00</span></div>
+                            <div class="flex justify-between mb-1"><span>Férias + 1/3 (Provisão)</span> <span>R$ 111,11</span></div>
+                            <div class="flex justify-between mb-1"><span>13º Salário (Provisão)</span> <span>R$ 83,33</span></div>
+                            <div class="flex justify-between mb-1"><span>Multa FGTS (Provisão)</span> <span>R$ 40,00</span></div>
+                            <div class="border-t pt-2 mt-2 flex justify-between font-bold text-red-600">
+                                <span>Total Extra (+31.4%)</span> <span>+ R$ 314,44</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 border-l-4 border-yellow-500">
+                        <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-truck text-yellow-500 mr-2"></i> Compras & ICMS
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-3">
+                            Não está no DAS! Ao comprar mercadoria, cuidado com:
+                        </p>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start">
+                                <i class="fas fa-chevron-right text-yellow-500 mt-1 mr-2"></i>
+                                <div>
+                                    <strong>ICMS-ST:</strong> O imposto já vem pago na nota de compra, mas encarece seu produto.
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-chevron-right text-yellow-500 mt-1 mr-2"></i>
+                                <div>
+                                    <strong>DIFAL:</strong> Se comprar de outro estado para uso (ex: computador, móveis), você paga a diferença de alíquota.
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Coluna da Direita -->
+                <div class="space-y-6">
+                    <div class="card p-6 border-l-4 border-purple-500">
+                        <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-file-invoice-dollar text-purple-500 mr-2"></i> Taxas Anuais (Esquecidas)
+                        </h3>
+                        <ul class="divide-y divide-gray-100 text-sm">
+                            <li class="py-2 flex justify-between">
+                                <span><i class="far fa-file-alt mr-2 text-gray-400"></i> Alvará de Funcionamento</span>
+                                <span class="text-gray-500">Prefeitura</span>
+                            </li>
+                            <li class="py-2 flex justify-between">
+                                <span><i class="fas fa-fire-extinguisher mr-2 text-gray-400"></i> Taxa de Bombeiros</span>
+                                <span class="text-gray-500">Estadual</span>
+                            </li>
+                            <li class="py-2 flex justify-between">
+                                <span><i class="fas fa-id-card mr-2 text-gray-400"></i> Certificado Digital (e-CNPJ)</span>
+                                <span class="text-gray-500">Anual (~R$ 200)</span>
+                            </li>
+                            <li class="py-2 flex justify-between">
+                                <span><i class="fas fa-laptop-medical mr-2 text-gray-400"></i> Sistema de Gestão (ERP)</span>
+                                <span class="text-gray-500">Mensalidade</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-800 text-slate-200 p-6 rounded-lg shadow-inner">
+                        <h4 class="font-bold text-white mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i> Dica de Ouro</h4>
+                        <p class="text-sm leading-relaxed">
+                            O Simples Nacional unifica 8 impostos em 1 guia (DAS), mas <strong>NÃO</strong> unifica as obrigações trabalhistas nem as taxas de funcionamento. 
+                            <br><br>
+                            Mantenha sempre uma reserva de caixa para o 13º dos funcionários e para a renovação do Alvará no começo do ano.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Layout Principal -->
-        <div class="main-layout">
-            <!-- Painel de Entradas -->
-            <div class="input-panel">
-                <h2>📊 Variáveis de Entrada</h2>
+        <!-- SESSÃO DE COLABORAÇÃO (DOAÇÃO) -->
+        <div class="max-w-6xl mx-auto mt-12 mb-12 px-4">
+            <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-heart text-red-500 mr-2"></i> Apoie este Projeto
+                </h3>
+                <p class="text-gray-600 mb-6 max-w-2xl mx-auto">
+                    Esta ferramenta é mantida de forma independente. Se ela te ajudou a economizar ou planejar melhor, considere fazer uma contribuição voluntária para mantermos as atualizações.
+                </p>
                 
-                <form id="financial-form">
-                    <div class="form-group">
-                        <label for="fv">
-                            Faturamento Bruto (R$)
-                            <span class="tooltip" data-tooltip="Receita total de vendas no período">?</span>
-                        </label>
-                        <input type="number" id="fv" step="0.01" min="0" placeholder="Ex: 160000">
+                <div class="flex flex-col md:flex-row justify-center items-center gap-4 mb-6">
+                    <button onclick="selecionarValor(5)" class="pix-btn border-2 border-gray-200 rounded-lg py-3 px-6 hover:border-blue-500 hover:bg-blue-50 transition font-bold text-gray-700 w-full md:w-auto">
+                        R$ 5,00
+                    </button>
+                    <button onclick="selecionarValor(9)" class="pix-btn border-2 border-gray-200 rounded-lg py-3 px-6 hover:border-blue-500 hover:bg-blue-50 transition font-bold text-gray-700 w-full md:w-auto">
+                        R$ 9,00
+                    </button>
+                    <button onclick="selecionarValor(14)" class="pix-btn border-2 border-gray-200 rounded-lg py-3 px-6 hover:border-blue-500 hover:bg-blue-50 transition font-bold text-gray-700 w-full md:w-auto">
+                        R$ 14,00
+                    </button>
+                    <div class="relative w-full md:w-auto">
+                        <span class="absolute left-3 top-3 text-gray-500 text-sm">R$</span>
+                        <input type="number" id="valorPersonalizado" placeholder="Outro" class="border-2 border-gray-200 rounded-lg py-2.5 pl-8 pr-4 w-full md:w-32 focus:border-blue-500 focus:outline-none transition">
                     </div>
-
-                    <div class="form-group">
-                        <label for="ccp">
-                            Custos de Compra de Produtos (R$)
-                            <span class="tooltip" data-tooltip="Total gasto na compra de mercadorias para revenda">?</span>
-                        </label>
-                        <input type="number" id="ccp" step="0.01" min="0" placeholder="Ex: 85000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="ei">
-                            Estoque Inicial (R$)
-                            <span class="tooltip" data-tooltip="Valor do estoque no início do período">?</span>
-                        </label>
-                        <input type="number" id="ei" step="0.01" min="0" placeholder="Ex: 20000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="ef">
-                            Estoque Final (R$)
-                            <span class="tooltip" data-tooltip="Valor do estoque no final do período">?</span>
-                        </label>
-                        <input type="number" id="ef" step="0.01" min="0" placeholder="Ex: 5000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="cf">
-                            Custos Fixos (R$)
-                            <span class="tooltip" data-tooltip="Despesas fixas mensais (aluguel, salários, etc.)">?</span>
-                        </label>
-                        <input type="number" id="cf" step="0.01" min="0" placeholder="Ex: 45000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="cv">
-                            Custos Variáveis (R$)
-                            <span class="tooltip" data-tooltip="Despesas que variam com as vendas (comissões, fretes, etc.)">?</span>
-                        </label>
-                        <input type="number" id="cv" step="0.01" min="0" placeholder="Ex: 0">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="oc">
-                            Outros Custos (R$)
-                            <span class="tooltip" data-tooltip="Despesas eventuais e não recorrentes">?</span>
-                        </label>
-                        <input type="number" id="oc" step="0.01" min="0" placeholder="Ex: 0">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="mk">
-                            Mark-up
-                            <span class="tooltip" data-tooltip="Fator multiplicador para preço de venda (ex: 1.7 = 70% de margem)">?</span>
-                        </label>
-                        <input type="number" id="mk" step="0.01" min="1" placeholder="Ex: 1.7">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="n">
-                            Número de Vendas
-                            <span class="tooltip" data-tooltip="Quantidade total de vendas realizadas no período">?</span>
-                        </label>
-                        <input type="number" id="n" step="1" min="0" placeholder="Ex: 2500">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="inv">
-                            Investimento Total (R$)
-                            <span class="tooltip" data-tooltip="Capital total investido no negócio para cálculo do ROI">?</span>
-                        </label>
-                        <input type="number" id="inv" step="0.01" min="0" placeholder="Ex: 100000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="entradas">
-                            Entradas no Período (R$)
-                            <span class="tooltip" data-tooltip="Total de dinheiro que entrou no caixa">?</span>
-                        </label>
-                        <input type="number" id="entradas" step="0.01" min="0" placeholder="Ex: 160000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="saidas">
-                            Saídas no Período (R$)
-                            <span class="tooltip" data-tooltip="Total de dinheiro que saiu do caixa">?</span>
-                        </label>
-                        <input type="number" id="saidas" step="0.01" min="0" placeholder="Ex: 140000">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="unidades-compradas">
-                            Unidades Compradas (opcional)
-                            <span class="tooltip" data-tooltip="Quantidade de produtos comprados para cálculo de preço sugerido">?</span>
-                        </label>
-                        <input type="number" id="unidades-compradas" step="1" min="0" placeholder="Ex: 1000">
-                    </div>
-                </form>
-
-                <div class="mt-20">
-                    <button class="btn" onclick="calcularIndicadores()">🔄 Calcular</button>
-                    <button class="btn btn-success" onclick="carregarDadosExemplo()">📝 Dados de Exemplo</button>
-                    <button class="btn btn-warning" onclick="limparFormulario()">🗑️ Limpar</button>
                 </div>
 
-                <div class="mt-20">
-                    <h3 style="margin-bottom: 10px; color: #4a5568;">Gerenciar Períodos</h3>
-                    <input type="text" id="periodo-nome" placeholder="Nome do período (ex: Janeiro 2024)" style="width: 100%; margin-bottom: 10px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px;">
-                    <button class="btn" onclick="salvarPeriodo()">💾 Salvar Período</button>
-                </div>
-
-                <div class="mt-20">
-                    <h3 style="margin-bottom: 10px; color: #4a5568;">Importar/Exportar</h3>
-                    <div class="sync-status" id="firebase-status">
-                        <span class="status-dot" id="status-dot"></span>
-                        <span id="status-text">Conectando...</span>
+                <div class="bg-slate-50 p-6 rounded-lg max-w-md mx-auto border border-slate-200">
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Chave PIX (Copia e Cola)</p>
+                    <div class="flex items-center bg-white border border-gray-300 rounded p-2 mb-3">
+                        <code id="pixKeyDisplay" class="text-xs text-gray-600 break-all flex-1 text-left mr-2">b4648948-d0a8-4402-81f4-8a4047fcf4e5</code>
+                        <button onclick="copiarPix()" class="text-blue-600 hover:text-blue-800">
+                            <i class="far fa-copy text-lg"></i>
+                        </button>
                     </div>
-                    <br>
-                    <input type="file" id="import-file" accept=".json" style="margin-bottom: 10px;">
-                    <button class="btn" onclick="importarDados()">📥 Importar JSON</button>
-                    <button class="btn" onclick="exportarJSON()">📤 Exportar JSON</button>
-                    <button class="btn" onclick="exportarCSV()">📊 Exportar CSV</button>
-                    <button class="btn" onclick="imprimirRelatorio()">🖨️ Imprimir</button>
-                </div>
-            </div>
-
-            <!-- Dashboard -->
-            <div class="dashboard">
-                <h2>📈 Dashboard - Indicadores Financeiros</h2>
-                <p style="font-size: 0.9em; color: #718096; margin-bottom: 15px;">ℹ️ Clique nos cartões para ver a explicação e fórmula.</p>
-                
-                <!-- Alertas -->
-                <div class="alerts" id="alerts-container"></div>
-
-                <!-- KPIs Grid -->
-                <div class="kpi-grid" id="kpi-grid">
-                    <!-- KPIs serão inseridos dinamicamente -->
-                </div>
-
-                <!-- CAMPO DE OBSERVAÇÕES ADICIONADO -->
-                <div class="notes-container" style="margin-top: 20px;">
-                    <h3 style="color: #4a5568; margin-bottom: 10px; font-size: 1.2em;">📝 Observações do Consultor</h3>
-                    <textarea id="consultant-notes" rows="4" placeholder="Digite aqui suas observações sobre os resultados..."></textarea>
+                    <button onclick="copiarPix()" id="btnCopiarPix" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded transition flex items-center justify-center">
+                        <i class="fas fa-qrcode mr-2"></i> Copiar Chave
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Histórico de Períodos -->
-        <div class="periods-section">
-            <h2>📅 Histórico de Períodos</h2>
-            <p style="color: #718096; margin-bottom: 15px;">Clique em um período para carregar os dados salvos</p>
-            <div class="periods-grid" id="periods-grid">
-                <!-- Períodos salvos serão inseridos dinamicamente -->
-            </div>
-        </div>
-
-        <!-- Seção de Relatórios -->
-        <div class="reports-section">
-            <h2>📋 Relatório Resumo</h2>
-            <div class="table-container">
-                <table id="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Indicador</th>
-                            <th>Valor</th>
-                            <th>Fórmula</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Dados serão inseridos dinamicamente -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- EXIBIÇÃO DE OBSERVAÇÕES NO RELATÓRIO ADICIONADA -->
-            <div id="report-notes-display" style="margin-top: 20px; padding: 15px; background: #f7fafc; border-left: 4px solid #667eea; border-radius: 4px; display: none;">
-                <h4 style="margin-bottom: 5px; color: #2d3748;">Observações do Consultor:</h4>
-                <p id="report-notes-text" style="color: #4a5568; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; font-style: italic;"></p>
-            </div>
-        </div>
-
-        <!-- Gráficos -->
-        <div class="charts-section">
-            <h2>📊 Gráficos</h2>
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <h3>Evolução Mensal</h3>
-                    <canvas id="chart-evolucao" width="400" height="300"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Composição das Despesas</h3>
-                    <canvas id="chart-despesas" width="400" height="300"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>CMV vs Lucro Bruto</h3>
-                    <canvas id="chart-cmv-lucro" width="400" height="300"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Explicação -->
-    <div id="infoModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Título</h3>
-                <button class="close-modal" onclick="fecharModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="modalDescription">Descrição aqui.</p>
-                <div class="modal-formula">
-                    <strong>🧮 Fórmula:</strong>
-                    <code id="modalFormula">Fórmula aqui</code>
-                </div>
-                <div class="modal-example">
-                    <strong>📝 Exemplo prático:</strong><br>
-                    <span id="modalExample">Exemplo aqui.</span>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
-        // ====================================================================
-        // CONFIGURAÇÃO FIREBASE
-        // ====================================================================
+        // ----- CONFIGURAÇÃO FIREBASE (SUBSTITUA COM SEUS DADOS) -----
+const firebaseConfig = {
+  apiKey: "AIzaSyAY06PHLqEUCBzg9SjnH4N6xe9ZzM8OLvo",
+  authDomain: "projeto-bfed3.firebaseapp.com",
+  projectId: "projeto-bfed3",
+  storageBucket: "projeto-bfed3.firebasestorage.app",
+  messagingSenderId: "785289237066",
+  appId: "1:785289237066:web:ff0c3e3cb9f22b52d5ccb3"
+};
+
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+        // ----- LÓGICA DE AUTENTICAÇÃO -----
         
-        const firebaseConfig = {
-          apiKey: "AIzaSyAsevkGkgVOwW_k2Se61UjlktCenI6q9wg",
-          authDomain: "simulador-2abd2.firebaseapp.com",
-          projectId: "simulador-2abd2",
-          storageBucket: "simulador-2abd2.firebasestorage.app",
-          messagingSenderId: "66391267958",
-          appId: "1:66391267958:web:9c17038e70c4deb835dd57"
-        };
-
-        // Inicialização Global
-        let db, auth;
-        let currentUser = null;
-        let unsubscribeSnapshot = null;
-
-        // Dicionário de explicações e fórmulas para os indicadores
-        const explicacoes = {
-            'fv': {
-                titulo: "Faturamento Bruto",
-                descricao: "É a soma de todo o dinheiro que entrou no caixa exclusivamente através das vendas dos seus produtos ou serviços, antes de descontar qualquer custo.",
-                formula: "Soma das Vendas",
-                exemplo: "Se você vendeu 10 camisetas a R$ 50,00 cada, seu Faturamento Bruto é R$ 500,00."
-            },
-            'cmv': {
-                titulo: "Custo das Mercadorias Vendidas (CMV)",
-                descricao: "Quanto a sua empresa gastou para comprar ou produzir exatamente os produtos que foram vendidos neste período.",
-                formula: "Estoque Inicial + Compras - Estoque Final",
-                exemplo: "Se você vendeu uma camiseta por R$ 50,00, mas pagou R$ 20,00 para o fornecedor por ela, seu CMV é R$ 20,00."
-            },
-            'lb': {
-                titulo: "Lucro Bruto",
-                descricao: "É o que sobra do dinheiro das vendas depois de pagar apenas o custo do produto. Serve para pagar as outras contas da empresa (aluguel, luz, etc.).",
-                formula: "Faturamento - CMV",
-                exemplo: "Vendeu por R$ 500,00 e os produtos custaram R$ 200,00. Lucro Bruto = R$ 300,00."
-            },
-            'dt': {
-                titulo: "Despesas Totais",
-                descricao: "A soma de todos os gastos para manter a empresa funcionando, incluindo aluguel, salários, contas de luz, comissões e imprevistos.",
-                formula: "Custos Fixos + Custos Variáveis + Outros Custos",
-                exemplo: "Aluguel (R$ 1000) + Luz (R$ 200) + Salário (R$ 1500) = Despesas Totais de R$ 2700,00."
-            },
-            'll': {
-                titulo: "Lucro Líquido",
-                descricao: "É o dinheiro que realmente sobra no bolso da empresa depois de pagar TUDO (fornecedores, aluguel, funcionários, impostos).",
-                formula: "Lucro Bruto - Despesas Totais",
-                exemplo: "Se entrou R$ 5000,00 e você gastou R$ 4000,00 com tudo, seu Lucro Líquido é R$ 1000,00."
-            },
-            'mlb': {
-                titulo: "Margem Bruta",
-                descricao: "Porcentagem que mostra quanto você ganha em cima do produto. Indica a eficiência na compra e venda.",
-                formula: "(Lucro Bruto ÷ Faturamento) × 100",
-                exemplo: "Uma margem bruta de 40% significa que de cada R$ 100,00 vendidos, R$ 40,00 sobram para pagar as despesas fixas."
-            },
-            'mll': {
-                titulo: "Margem Líquida",
-                descricao: "Porcentagem final de lucro real sobre as vendas. Mostra a saúde financeira verdadeira do negócio.",
-                formula: "(Lucro Líquido ÷ Faturamento) × 100",
-                exemplo: "10% significa R$ 10 de lucro limpo a cada R$ 100." },
-            'mc': {
-                titulo: "Margem de Contribuição",
-                descricao: "É o quanto sobra de cada venda para pagar as despesas fixas (aluguel, salários fixos) e gerar lucro, depois de descontar os custos variáveis.",
-                formula: "((Faturamento - Variáveis - CMV) ÷ Faturamento) × 100",
-                exemplo: "Se sobra R$ 30,00 de cada produto para pagar o aluguel, essa é sua margem de contribuição unitária."
-            },
-            'pe': {
-                titulo: "Ponto de Equilíbrio",
-                descricao: "É o valor mínimo que você precisa vender no mês para não ter prejuízo. Nesse ponto, o lucro é zero (empata), mas todas as contas são pagas.",
-                formula: "Custos Fixos ÷ (Margem de Contribuição ÷ 100)",
-                exemplo: "Se seu Ponto de Equilíbrio é R$ 10.000,00, você só começa a ter lucro a partir da venda de R$ 10.001,00."
-            },
-            'em': {
-                titulo: "Estoque Médio",
-                descricao: "O valor médio em dinheiro de mercadorias paradas na sua loja durante o período.",
-                formula: "(Estoque Inicial + Estoque Final) ÷ 2",
-                exemplo: "Começou o mês com R$ 20.000 e terminou com R$ 10.000. Estoque médio = R$ 15.000."
-            },
-            'ge': {
-                titulo: "Giro de Estoque",
-                descricao: "Quantas vezes você vendeu e repôs seu estoque inteiro no período. Quanto maior, melhor (significa que o produto não fica encalhado).",
-                formula: "CMV ÷ Estoque Médio",
-                exemplo: "Giro de 2x significa que você renovou seu estoque duas vezes nesse período."
-            },
-            'tm': {
-                titulo: "Ticket Médio",
-                descricao: "O valor médio que cada cliente gasta quando compra na sua loja.",
-                formula: "Faturamento ÷ Número de Vendas",
-                exemplo: "Se o Ticket Médio é R$ 150,00, significa que, na média, cada venda realizada foi nesse valor."
-            },
-            'fc': {
-                titulo: "Fluxo de Caixa",
-                descricao: "A diferença simples entre todo o dinheiro que entrou e todo o dinheiro que saiu da conta no período. Mostra a disponibilidade imediata de dinheiro.",
-                formula: "Entradas - Saídas",
-                exemplo: "Entrou R$ 5.000 e saiu R$ 4.500. Fluxo de Caixa positivo de R$ 500,00."
-            },
-            'roi': {
-                titulo: "ROI (Retorno sobre Investimento)",
-                descricao: "Porcentagem que diz quanto você ganhou em relação ao que investiu inicialmente no negócio.",
-                formula: "(Lucro Líquido ÷ Investimento Total) × 100",
-                exemplo: "ROI de 10% significa que para cada R$ 100,00 investidos, você recuperou os R$ 100,00 e ganhou mais R$ 10,00."
-            },
-            'precoSugerido': {
-                titulo: "Preço Sugerido Médio",
-                descricao: "Valor de venda recomendado para seus produtos baseado no Mark-up (margem) que você definiu.",
-                formula: "(Custo Unitário × Mark-up)",
-                exemplo: "Se o produto custa R$ 50,00 e o mark-up é 2.0, o preço sugerido é R$ 100,00."
-            }
-        };
-
-        // Variáveis globais para armazenar dados
-        let dadosFinanceiros = {};
-        let periodosHistorico = JSON.parse(localStorage.getItem('erp_simulafinanc_v1_periodos')) || [];
-        let dadosCalculados = {};
-
-        // Funções do Modal
-        function mostrarExplicacao(chave) {
-            const dados = explicacoes[chave];
-            if (dados) {
-                document.getElementById('modalTitle').textContent = dados.titulo;
-                document.getElementById('modalDescription').textContent = dados.descricao;
-                document.getElementById('modalFormula').textContent = dados.formula;
-                document.getElementById('modalExample').textContent = dados.exemplo;
-                
-                document.getElementById('infoModal').style.display = 'flex';
-            }
-        }
-
-        function fecharModal() {
-            document.getElementById('infoModal').style.display = 'none';
-        }
-
-        // Fechar modal ao clicar fora
-        window.onclick = function(event) {
-            const modal = document.getElementById('infoModal');
-            if (event.target === modal) {
-                fecharModal();
-            }
-        }
-
-        // Função para formatar valores monetários
-        function formatarMoeda(valor) {
-            if (isNaN(valor) || valor === null || valor === undefined) return 'R$ 0,00';
-            return new Intl.NumberFormat('pt-BR', { 
-                style: 'currency', 
-                currency: 'BRL' 
-            }).format(valor);
-        }
-
-        // Função para formatar percentuais
-        function formatarPercentual(valor) {
-            if (isNaN(valor) || valor === null || valor === undefined) return '0,00%';
-            return new Intl.NumberFormat('pt-BR', { 
-                style: 'percent', 
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(valor / 100);
-        }
-
-        // Função para obter valores do formulário
-        function obterDadosFormulario() {
-            return {
-                fv: parseFloat(document.getElementById('fv').value) || 0,           // Faturamento Bruto
-                ccp: parseFloat(document.getElementById('ccp').value) || 0,         // Custos de Compra de Produtos
-                ei: parseFloat(document.getElementById('ei').value) || 0,           // Estoque Inicial
-                ef: parseFloat(document.getElementById('ef').value) || 0,           // Estoque Final
-                cf: parseFloat(document.getElementById('cf').value) || 0,           // Custos Fixos
-                cv: parseFloat(document.getElementById('cv').value) || 0,           // Custos Variáveis
-                oc: parseFloat(document.getElementById('oc').value) || 0,           // Outros Custos
-                mk: parseFloat(document.getElementById('mk').value) || 1.7,         // Mark-up
-                n: parseInt(document.getElementById('n').value) || 0,               // Número de Vendas
-                inv: parseFloat(document.getElementById('inv').value) || 0,         // Investimento Total
-                entradas: parseFloat(document.getElementById('entradas').value) || 0, // Entradas no Período
-                saidas: parseFloat(document.getElementById('saidas').value) || 0,   // Saídas no Período
-                unidadesCompradas: parseInt(document.getElementById('unidades-compradas').value) || 0, // Unidades Compradas
-                
-                // NOVO CAMPO: Observações do Consultor
-                consultantNotes: document.getElementById('consultant-notes').value || ''
-            };
-        }
-
-        // Função para preencher o formulário com dados
-        function preencherFormulario(dados) {
-            document.getElementById('fv').value = dados.fv || '';
-            document.getElementById('ccp').value = dados.ccp || '';
-            document.getElementById('ei').value = dados.ei || '';
-            document.getElementById('ef').value = dados.ef || '';
-            document.getElementById('cf').value = dados.cf || '';
-            document.getElementById('cv').value = dados.cv || '';
-            document.getElementById('oc').value = dados.oc || '';
-            document.getElementById('mk').value = dados.mk || '';
-            document.getElementById('n').value = dados.n || '';
-            document.getElementById('inv').value = dados.inv || '';
-            document.getElementById('entradas').value = dados.entradas || '';
-            document.getElementById('saidas').value = dados.saidas || '';
-            document.getElementById('unidades-compradas').value = dados.unidadesCompradas || '';
+        // Monitorar estado da autenticação
+        auth.onAuthStateChanged((user) => {
+            const authScreen = document.getElementById('auth-screen');
+            const appContent = document.getElementById('app-content');
             
-            // PREENCHER CAMPO DE OBSERVAÇÕES
-            document.getElementById('consultant-notes').value = dados.consultantNotes || '';
-        }
-
-        // Função principal para calcular todos os indicadores
-        function calcularIndicadores() {
-            dadosFinanceiros = obterDadosFormulario();
-            
-            // 1. CMV = EI + CCP - EF (Custo das Mercadorias Vendidas)
-            const cmv = dadosFinanceiros.ei + dadosFinanceiros.ccp - dadosFinanceiros.ef;
-            
-            // 2. LB = FV - CMV (Lucro Bruto)
-            const lb = dadosFinanceiros.fv - cmv;
-            
-            // 3. MLB = (LB / FV) × 100 (Margem Bruta %)
-            const mlb = dadosFinanceiros.fv > 0 ? (lb / dadosFinanceiros.fv) * 100 : 0;
-            
-            // 4. DT = CF + CV + OC (Despesas Totais)
-            const dt = dadosFinanceiros.cf + dadosFinanceiros.cv + dadosFinanceiros.oc;
-            
-            // 5. LL = LB - DT (Lucro Líquido)
-            const ll = lb - dt;
-            
-            // 6. MLL = (LL / FV) × 100 (Margem Líquida %)
-            const mll = dadosFinanceiros.fv > 0 ? (ll / dadosFinanceiros.fv) * 100 : 0;
-            
-            // 7. MC = [(FV - CV - CMV) / FV] × 100 (Margem de Contribuição %)
-            const mc = dadosFinanceiros.fv > 0 ? ((dadosFinanceiros.fv - dadosFinanceiros.cv - cmv) / dadosFinanceiros.fv) * 100 : 0;
-            
-            // 8. PE = CF / (MC ÷ 100) (Ponto de Equilíbrio R$)
-            const pe = mc > 0 ? dadosFinanceiros.cf / (mc / 100) : 0;
-            
-            // 9. EM = (EI + EF) / 2 (Estoque Médio)
-            const em = (dadosFinanceiros.ei + dadosFinanceiros.ef) / 2;
-            
-            // 10. GE = CMV / EM (Giro de Estoque)
-            const ge = em > 0 ? cmv / em : 0;
-            
-            // 11. TM = FV / N (Ticket Médio)
-            const tm = dadosFinanceiros.n > 0 ? dadosFinanceiros.fv / dadosFinanceiros.n : 0;
-            
-            // 12. FC = Entradas - Saídas (Fluxo de Caixa)
-            const fc = dadosFinanceiros.entradas - dadosFinanceiros.saidas;
-            
-            // 13. ROI = (LL / INV) × 100 (Retorno sobre Investimento %)
-            const roi = dadosFinanceiros.inv > 0 ? (ll / dadosFinanceiros.inv) * 100 : 0;
-            
-            // 14. Preço sugerido médio (opcional)
-            const precoSugerido = dadosFinanceiros.unidadesCompradas > 0 ? 
-                (dadosFinanceiros.ccp / dadosFinanceiros.unidadesCompradas) * dadosFinanceiros.mk : 0;
-
-            // Armazenar dados calculados
-            dadosCalculados = {
-                cmv, lb, mlb, dt, ll, mll, mc, pe, em, ge, tm, fc, roi, precoSugerido
-            };
-
-            // Atualizar interface
-            atualizarDashboard();
-            atualizarAlertas();
-            atualizarTabelaResumo();
-            atualizarGraficos();
-            
-            // Salvar no localStorage
-            localStorage.setItem('erp_simulafinanc_v1', JSON.stringify({
-                dados: dadosFinanceiros,
-                calculados: dadosCalculados,
-                timestamp: new Date().toISOString()
-            }));
-
-            // Sync with Firebase
-            syncWithFirebase();
-        }
-
-        // Função para atualizar o dashboard com KPIs
-        function atualizarDashboard() {
-            const kpiGrid = document.getElementById('kpi-grid');
-            
-            const kpis = [
-                { label: 'Faturamento Bruto', value: formatarMoeda(dadosFinanceiros.fv), key: 'fv' },
-                { label: 'Custo Mercadorias Vendidas', value: formatarMoeda(dadosCalculados.cmv), key: 'cmv' },
-                { label: 'Lucro Bruto', value: formatarMoeda(dadosCalculados.lb), key: 'lb', isProfit: true },
-                { label: 'Despesas Totais', value: formatarMoeda(dadosCalculados.dt), key: 'dt' },
-                { label: 'Lucro Líquido', value: formatarMoeda(dadosCalculados.ll), key: 'll', isProfit: true },
-                { label: 'Margem Bruta', value: formatarPercentual(dadosCalculados.mlb), key: 'mlb', isPercent: true },
-                { label: 'Margem Líquida', value: formatarPercentual(dadosCalculados.mll), key: 'mll', isPercent: true },
-                { label: 'Margem de Contribuição', value: formatarPercentual(dadosCalculados.mc), key: 'mc', isPercent: true },
-                { label: 'Ponto de Equilíbrio', value: formatarMoeda(dadosCalculados.pe), key: 'pe' },
-                { label: 'Estoque Médio', value: formatarMoeda(dadosCalculados.em), key: 'em' },
-                { label: 'Giro de Estoque', value: dadosCalculados.ge.toFixed(2) + 'x', key: 'ge' },
-                { label: 'Ticket Médio', value: formatarMoeda(dadosCalculados.tm), key: 'tm' },
-                { label: 'Fluxo de Caixa', value: formatarMoeda(dadosCalculados.fc), key: 'fc', isProfit: true },
-                { label: 'ROI', value: formatarPercentual(dadosCalculados.roi), key: 'roi', isPercent: true }
-            ];
-
-            if (dadosCalculados.precoSugerido > 0) {
-                kpis.push({ label: 'Preço Sugerido Médio', value: formatarMoeda(dadosCalculados.precoSugerido), key: 'precoSugerido' });
-            }
-
-            kpiGrid.innerHTML = '';
-            kpis.forEach(kpi => {
-                const kpiCard = document.createElement('div');
-                kpiCard.classList.add('kpi-card');
-                
-                // Adicionar evento de clique para abrir o modal
-                kpiCard.onclick = function() {
-                    mostrarExplicacao(kpi.key);
-                };
-                
-                // Aplicar classes condicionais baseadas no valor
-                if (kpi.isProfit) {
-                    const valor = kpi.key === 'lb' ? dadosCalculados.lb : 
-                                  kpi.key === 'll' ? dadosCalculados.ll : 
-                                  dadosCalculados.fc;
-                    if (valor < 0) kpiCard.classList.add('negative');
-                } else if (kpi.isPercent) {
-                    const valor = kpi.key === 'mlb' ? dadosCalculados.mlb :
-                                  kpi.key === 'mll' ? dadosCalculados.mll :
-                                  dadosCalculados.roi;
-                    if (valor < 0) kpiCard.classList.add('negative');
-                    else if (valor < 10 && kpi.key !== 'roi') kpiCard.classList.add('warning');
-                }
-                
-                kpiCard.innerHTML = `
-                    <div class="kpi-value">${kpi.value}</div>
-                    <div class="kpi-label">${kpi.label}</div>
-                `;
-                kpiGrid.appendChild(kpiCard);
-            });
-        }
-
-        // Função para atualizar alertas
-        function atualizarAlertas() {
-            const alertsContainer = document.getElementById('alerts-container');
-            alertsContainer.innerHTML = '';
-
-            // Alerta: Vendas abaixo do ponto de equilíbrio
-            if (dadosFinanceiros.fv > 0 && dadosCalculados.pe > 0 && dadosFinanceiros.fv < dadosCalculados.pe) {
-                const alert = document.createElement('div');
-                alert.classList.add('alert', 'alert-danger');
-                alert.innerHTML = `🚨 <strong>Atenção:</strong> Vendas abaixo do ponto de equilíbrio! Você precisa vender pelo menos ${formatarMoeda(dadosCalculados.pe)} para cobrir os custos fixos.`;
-                alertsContainer.appendChild(alert);
-            }
-
-            // Alerta: Fluxo de caixa negativo
-            if (dadosCalculados.fc < 0) {
-                const alert = document.createElement('div');
-                alert.classList.add('alert', 'alert-danger');
-                alert.innerHTML = `💸 <strong>Fluxo de caixa negativo:</strong> Saídas superiores às entradas em ${formatarMoeda(Math.abs(dadosCalculados.fc))}.`;
-                alertsContainer.appendChild(alert);
-            }
-
-            // Alerta: Margem de contribuição <= 0
-            if (dadosCalculados.mc <= 0) {
-                const alert = document.createElement('div');
-                alert.classList.add('alert', 'alert-warning');
-                alert.innerHTML = `⚠️ <strong>Margem de contribuição baixa ou negativa:</strong> Ponto de equilíbrio indefinido. Revise seus custos variáveis e preços.`;
-                alertsContainer.appendChild(alert);
-            }
-
-            // Alerta: Margem líquida baixa
-            if (dadosCalculados.mll > 0 && dadosCalculados.mll < 5) {
-                const alert = document.createElement('div');
-                alert.classList.add('alert', 'alert-warning');
-                alert.innerHTML = `📊 <strong>Margem líquida baixa:</strong> ${formatarPercentual(dadosCalculados.mll)}. Considere otimizar custos ou aumentar preços.`;
-                alertsContainer.appendChild(alert);
-            }
-
-            // Alerta: ROI negativo
-            if (dadosCalculados.roi < 0) {
-                const alert = document.createElement('div');
-                alert.classList.add('alert', 'alert-danger');
-                alert.innerHTML = `📉 <strong>ROI negativo:</strong> O investimento não está gerando retorno positivo.`;
-                alertsContainer.appendChild(alert);
-            }
-        }
-
-        // Função para atualizar tabela resumo
-        function atualizarTabelaResumo() {
-            const tbody = document.querySelector('#summary-table tbody');
-            
-            const resumo = [
-                { indicador: 'Faturamento Bruto (FV)', valor: formatarMoeda(dadosFinanceiros.fv), formula: 'Receita total de vendas' },
-                { indicador: 'Custo Mercadorias Vendidas (CMV)', valor: formatarMoeda(dadosCalculados.cmv), formula: 'EI + CCP - EF' },
-                { indicador: 'Lucro Bruto (LB)', valor: formatarMoeda(dadosCalculados.lb), formula: 'FV - CMV' },
-                { indicador: 'Despesas Totais (DT)', valor: formatarMoeda(dadosCalculados.dt), formula: 'CF + CV + OC' },
-                { indicador: 'Lucro Líquido (LL)', valor: formatarMoeda(dadosCalculados.ll), formula: 'LB - DT' },
-                { indicador: 'Margem Bruta (%)', valor: formatarPercentual(dadosCalculados.mlb), formula: '(LB / FV) × 100' },
-                { indicador: 'Margem Líquida (%)', valor: formatarPercentual(dadosCalculados.mll), formula: '(LL / FV) × 100' },
-                { indicador: 'Margem de Contribuição (%)', valor: formatarPercentual(dadosCalculados.mc), formula: '[(FV - CV - CMV) / FV] × 100' },
-                { indicador: 'Ponto de Equilíbrio (R$)', valor: formatarMoeda(dadosCalculados.pe), formula: 'CF / (MC ÷ 100)' },
-                { indicador: 'Estoque Médio', valor: formatarMoeda(dadosCalculados.em), formula: '(EI + EF) / 2' },
-                { indicador: 'Giro de Estoque', valor: dadosCalculados.ge.toFixed(2) + 'x', formula: 'CMV / EM' },
-                { indicador: 'Ticket Médio', valor: formatarMoeda(dadosCalculados.tm), formula: 'FV / N' },
-                { indicador: 'Fluxo de Caixa', valor: formatarMoeda(dadosCalculados.fc), formula: 'Entradas - Saídas' },
-                { indicador: 'ROI (%)', valor: formatarPercentual(dadosCalculados.roi), formula: '(LL / INV) × 100' }
-            ];
-
-            tbody.innerHTML = '';
-            resumo.forEach(item => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td><strong>${item.indicador}</strong></td>
-                    <td>${item.valor}</td>
-                    <td><em>${item.formula}</em></td>
-                `;
-            });
-
-            // ATUALIZAR EXIBIÇÃO DE NOTAS NO RELATÓRIO
-            const notes = dadosFinanceiros.consultantNotes;
-            const noteDiv = document.getElementById('report-notes-display');
-            const noteText = document.getElementById('report-notes-text');
-            if (notes && notes.trim() !== "") {
-                noteDiv.style.display = 'block';
-                noteText.textContent = notes;
+            if (user) {
+                // Usuário logado
+                authScreen.classList.add('hidden');
+                appContent.classList.remove('hidden');
+                // Atualizar nome no header
+                const nome = user.displayName || user.email.split('@')[0];
+                document.getElementById('user-display-name').innerText = nome;
+                // Iniciar cálculos
+                calcular();
             } else {
-                noteDiv.style.display = 'none';
+                // Usuário deslogado
+                authScreen.classList.remove('hidden');
+                appContent.classList.add('hidden');
             }
-        }
-
-        // Função para carregar dados de exemplo
-        function carregarDadosExemplo() {
-            const dadosExemplo = {
-                fv: 160000,
-                ccp: 85000,
-                ei: 20000,
-                ef: 5000,
-                cf: 45000,
-                cv: 0,
-                oc: 0,
-                mk: 1.7,
-                n: 2500,
-                inv: 100000,
-                entradas: 160000,
-                saidas: 140000,
-                unidadesCompradas: 1000,
-                consultantNotes: "Análise preliminar: A empresa apresenta boa saúde financeira com margem líquida positiva. Atenção para o giro de estoque."
-            };
-
-            preencherFormulario(dadosExemplo);
-            calcularIndicadores();
-        }
-
-        // Função para limpar formulário
-        function limparFormulario() {
-            if (confirm('Tem certeza que deseja limpar todos os dados?')) {
-                document.getElementById('financial-form').reset();
-                document.getElementById('consultant-notes').value = ''; // Limpar notas também
-                document.getElementById('kpi-grid').innerHTML = '';
-                document.getElementById('alerts-container').innerHTML = '';
-                document.querySelector('#summary-table tbody').innerHTML = '';
-                
-                // Limpar notas do relatório
-                document.getElementById('report-notes-display').style.display = 'none';
-                document.getElementById('report-notes-text').textContent = '';
-
-                limparGraficos();
-                
-                // Sincroniza estado limpo (mas não deleta histórico para segurança, a menos que o usuário exclua os cards)
-                syncWithFirebase();
-            }
-        }
-
-        // Função para salvar período
-        function salvarPeriodo() {
-            const nome = document.getElementById('periodo-nome').value.trim();
-            if (!nome) {
-                alert('Por favor, insira um nome para o período.');
-                return;
-            }
-
-            if (Object.keys(dadosFinanceiros).length === 0) {
-                alert('Calcule os indicadores antes de salvar o período.');
-                return;
-            }
-
-            const periodo = {
-                id: Date.now(),
-                nome: nome,
-                dados: { ...dadosFinanceiros },
-                calculados: { ...dadosCalculados },
-                timestamp: new Date().toISOString()
-            };
-
-            // Manter apenas os últimos 12 períodos
-            periodosHistorico.unshift(periodo);
-            if (periodosHistorico.length > 12) {
-                periodosHistorico = periodosHistorico.slice(0, 12);
-            }
-
-            localStorage.setItem('erp_simulafinanc_v1_periodos', JSON.stringify(periodosHistorico));
-            document.getElementById('periodo-nome').value = '';
-            atualizarHistoricoPeriodos();
-            
-            // Sync Firebase
-            syncWithFirebase();
-            
-            alert('Período salvo com sucesso!');
-        }
-
-        // Função para atualizar histórico de períodos
-        function atualizarHistoricoPeriodos() {
-            const periodsGrid = document.getElementById('periods-grid');
-            periodsGrid.innerHTML = '';
-
-            if (periodosHistorico.length === 0) {
-                periodsGrid.innerHTML = '<p style="color: #718096; text-align: center; grid-column: 1 / -1;">Nenhum período salvo ainda.</p>';
-                return;
-            }
-
-            periodosHistorico.forEach(periodo => {
-                const periodCard = document.createElement('div');
-                periodCard.classList.add('period-card');
-                periodCard.innerHTML = `
-                    <h4 style="margin-bottom: 8px; color: #4a5568;">${periodo.nome}</h4>
-                    <p style="font-size: 12px; color: #718096; margin-bottom: 8px;">
-                        ${new Date(periodo.timestamp).toLocaleDateString('pt-BR')}
-                    </p>
-                    <p style="font-size: 14px; color: #2d3748;">
-                        <strong>Faturamento:</strong> ${formatarMoeda(periodo.dados.fv)}<br>
-                        <strong>Lucro Líquido:</strong> ${formatarMoeda(periodo.calculados.ll)}
-                    </p>
-                    <div style="margin-top: 10px;">
-                        <button class="btn" style="font-size: 12px; padding: 6px 12px;" onclick="carregarPeriodo(${periodo.id})">Carregar</button>
-                        <button class="btn btn-danger" style="font-size: 12px; padding: 6px 12px;" onclick="excluirPeriodo(${periodo.id})">Excluir</button>
-                    </div>
-                `;
-                periodsGrid.appendChild(periodCard);
-            });
-        }
-
-        // Função para carregar período específico
-        function carregarPeriodo(id) {
-            const periodo = periodosHistorico.find(p => p.id === id);
-            if (periodo) {
-                preencherFormulario(periodo.dados);
-                dadosFinanceiros = { ...periodo.dados };
-                dadosCalculados = { ...periodo.calculados };
-                atualizarDashboard();
-                atualizarAlertas();
-                atualizarTabelaResumo();
-                atualizarGraficos();
-                // Sincroniza o estado "atual" carregado
-                syncWithFirebase();
-            }
-        }
-
-        // Função para excluir período
-        function excluirPeriodo(id) {
-            if (confirm('Tem certeza que deseja excluir este período?')) {
-                periodosHistorico = periodosHistorico.filter(p => p.id !== id);
-                localStorage.setItem('erp_simulafinanc_v1_periodos', JSON.stringify(periodosHistorico));
-                atualizarHistoricoPeriodos();
-                syncWithFirebase();
-            }
-        }
-
-        // Função para exportar dados em JSON
-        function exportarJSON() {
-            const dadosExport = {
-                dadosAtuais: {
-                    dados: dadosFinanceiros,
-                    calculados: dadosCalculados
-                },
-                historicoPeriodos: periodosHistorico,
-                exportadoEm: new Date().toISOString()
-            };
-
-            const blob = new Blob([JSON.stringify(dadosExport, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `erp-financeiro-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        // Função para importar dados JSON
-        function importarDados() {
-            const fileInput = document.getElementById('import-file');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Por favor, selecione um arquivo JSON.');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const dadosImportados = JSON.parse(e.target.result);
-                    
-                    if (dadosImportados.dadosAtuais) {
-                        preencherFormulario(dadosImportados.dadosAtuais.dados);
-                        dadosFinanceiros = { ...dadosImportados.dadosAtuais.dados };
-                        dadosCalculados = { ...dadosImportados.dadosAtuais.calculados };
-                        atualizarDashboard();
-                        atualizarAlertas();
-                        atualizarTabelaResumo();
-                        atualizarGraficos();
-                    }
-                    
-                    if (dadosImportados.historicoPeriodos) {
-                        periodosHistorico = dadosImportados.historicoPeriodos;
-                        localStorage.setItem('erp_simulafinanc_v1_periodos', JSON.stringify(periodosHistorico));
-                        atualizarHistoricoPeriodos();
-                    }
-                    
-                    syncWithFirebase();
-                    alert('Dados importados com sucesso!');
-                } catch (error) {
-                    alert('Erro ao importar dados. Verifique se o arquivo é um JSON válido.');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        // Função para exportar CSV
-        function exportarCSV() {
-            if (Object.keys(dadosCalculados).length === 0) {
-                alert('Calcule os indicadores antes de exportar.');
-                return;
-            }
-
-            const headers = [
-                'Indicador', 'Valor', 'Fórmula'
-            ];
-
-            const dados = [
-                ['Faturamento Bruto', dadosFinanceiros.fv, 'Receita total de vendas'],
-                ['Custo Mercadorias Vendidas', dadosCalculados.cmv, 'EI + CCP - EF'],
-                ['Lucro Bruto', dadosCalculados.lb, 'FV - CMV'],
-                ['Despesas Totais', dadosCalculados.dt, 'CF + CV + OC'],
-                ['Lucro Líquido', dadosCalculados.ll, 'LB - DT'],
-                ['Margem Bruta (%)', dadosCalculados.mlb, '(LB / FV) × 100'],
-                ['Margem Líquida (%)', dadosCalculados.mll, '(LL / FV) × 100'],
-                ['Margem de Contribuição (%)', dadosCalculados.mc, '[(FV - CV - CMV) / FV] × 100'],
-                ['Ponto de Equilíbrio', dadosCalculados.pe, 'CF / (MC ÷ 100)'],
-                ['Estoque Médio', dadosCalculados.em, '(EI + EF) / 2'],
-                ['Giro de Estoque', dadosCalculados.ge, 'CMV / EM'],
-                ['Ticket Médio', dadosCalculados.tm, 'FV / N'],
-                ['Fluxo de Caixa', dadosCalculados.fc, 'Entradas - Saídas'],
-                ['ROI (%)', dadosCalculados.roi, '(LL / INV) × 100']
-            ];
-
-            const csvContent = [headers, ...dados]
-                .map(row => row.map(cell => `"${cell}"`).join(';'))
-                .join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `relatorio-financeiro-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        // Função para imprimir relatório
-        function imprimirRelatorio() {
-            window.print();
-        }
-
-        // Funções para gráficos em canvas
-        function atualizarGraficos() {
-            desenharGraficoEvolucao();
-            desenharGraficoDespesas();
-            desenharGraficoCMVLucro();
-        }
-
-        function limparGraficos() {
-            const canvases = ['chart-evolucao', 'chart-despesas', 'chart-cmv-lucro'];
-            canvases.forEach(id => {
-                const canvas = document.getElementById(id);
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            });
-        }
-
-        // Gráfico de evolução mensal (últimos períodos salvos)
-        function desenharGraficoEvolucao() {
-            const canvas = document.getElementById('chart-evolucao');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (periodosHistorico.length === 0) {
-                ctx.fillStyle = '#718096';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Salve períodos para ver a evolução', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-
-            const margin = 40;
-            const chartWidth = canvas.width - 2 * margin;
-            const chartHeight = canvas.height - 2 * margin;
-
-            // Dados dos últimos períodos (máximo 6 para visualização)
-            const dadosGrafico = periodosHistorico.slice(0, 6).reverse();
-            const maxFV = Math.max(...dadosGrafico.map(p => p.dados.fv));
-            const maxLL = Math.max(...dadosGrafico.map(p => Math.abs(p.calculados.ll)));
-            const maxValue = Math.max(maxFV, maxLL);
-
-            // Desenhar eixos
-            ctx.strokeStyle = '#e2e8f0';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(margin, margin);
-            ctx.lineTo(margin, canvas.height - margin);
-            ctx.lineTo(canvas.width - margin, canvas.height - margin);
-            ctx.stroke();
-
-            // Desenhar linhas do gráfico
-            if (dadosGrafico.length > 1) {
-                const stepX = chartWidth / (dadosGrafico.length - 1);
-
-                // Linha do Faturamento
-                ctx.strokeStyle = '#667eea';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                dadosGrafico.forEach((periodo, index) => {
-                    const x = margin + index * stepX;
-                    const y = canvas.height - margin - (periodo.dados.fv / maxValue) * chartHeight;
-                    if (index === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-
-                // Linha do Lucro Líquido
-                ctx.strokeStyle = '#38a169';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                dadosGrafico.forEach((periodo, index) => {
-                    const x = margin + index * stepX;
-                    const y = canvas.height - margin - (Math.max(0, periodo.calculados.ll) / maxValue) * chartHeight;
-                    if (index === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-            }
-
-            // Legenda
-            ctx.fillStyle = '#667eea';
-            ctx.fillRect(margin, 10, 15, 15);
-            ctx.fillStyle = '#4a5568';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('Faturamento', margin + 20, 22);
-
-            ctx.fillStyle = '#38a169';
-            ctx.fillRect(margin + 120, 10, 15, 15);
-            ctx.fillText('Lucro Líquido', margin + 145, 22);
-        }
-
-        // Gráfico de composição das despesas (pizza)
-        function desenharGraficoDespesas() {
-            const canvas = document.getElementById('chart-despesas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (dadosCalculados.dt === 0) {
-                ctx.fillStyle = '#718096';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Nenhuma despesa informada', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = Math.min(centerX, centerY) - 40;
-
-            const despesas = [
-                { label: 'Custos Fixos', valor: dadosFinanceiros.cf, cor: '#e53e3e' },
-                { label: 'Custos Variáveis', valor: dadosFinanceiros.cv, cor: '#ed8936' },
-                { label: 'Outros Custos', valor: dadosFinanceiros.oc, cor: '#667eea' }
-            ].filter(d => d.valor > 0);
-
-            let startAngle = -Math.PI / 2;
-
-            despesas.forEach((despesa, index) => {
-                const sliceAngle = (despesa.valor / dadosCalculados.dt) * 2 * Math.PI;
-                
-                // Desenhar fatia
-                ctx.fillStyle = despesa.cor;
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-                ctx.closePath();
-                ctx.fill();
-
-                // Desenhar legenda
-                const legendY = 20 + index * 25;
-                ctx.fillStyle = despesa.cor;
-                ctx.fillRect(10, legendY, 15, 15);
-                ctx.fillStyle = '#4a5568';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText(`${despesa.label}: ${formatarMoeda(despesa.valor)}`, 30, legendY + 12);
-
-                startAngle += sliceAngle;
-            });
-        }
-
-        // Gráfico de barras CMV vs Lucro Bruto
-        function desenharGraficoCMVLucro() {
-            const canvas = document.getElementById('chart-cmv-lucro');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const margin = 40;
-            const chartWidth = canvas.width - 2 * margin;
-            const chartHeight = canvas.height - 2 * margin;
-
-            const maxValue = Math.max(dadosCalculados.cmv, Math.abs(dadosCalculados.lb));
-            
-            if (maxValue === 0) {
-                ctx.fillStyle = '#718096';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Calcule os indicadores para ver o gráfico', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-
-            // Desenhar eixos
-            ctx.strokeStyle = '#e2e8f0';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(margin, margin);
-            ctx.lineTo(margin, canvas.height - margin);
-            ctx.lineTo(canvas.width - margin, canvas.height - margin);
-            ctx.stroke();
-
-            // Barra CMV
-            const cmvHeight = (dadosCalculados.cmv / maxValue) * chartHeight;
-            ctx.fillStyle = '#e53e3e';
-            ctx.fillRect(margin + 50, canvas.height - margin - cmvHeight, 80, cmvHeight);
-
-            // Barra Lucro Bruto
-            const lbHeight = Math.abs(dadosCalculados.lb / maxValue) * chartHeight;
-            ctx.fillStyle = dadosCalculados.lb >= 0 ? '#38a169' : '#e53e3e';
-            ctx.fillRect(margin + 150, canvas.height - margin - lbHeight, 80, lbHeight);
-
-            // Labels
-            ctx.fillStyle = '#4a5568';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('CMV', margin + 90, canvas.height - margin + 20);
-            ctx.fillText('Lucro Bruto', margin + 190, canvas.height - margin + 20);
-
-            // Valores
-            ctx.font = '10px Arial';
-            ctx.fillText(formatarMoeda(dadosCalculados.cmv), margin + 90, canvas.height - margin - cmvHeight - 5);
-            ctx.fillText(formatarMoeda(dadosCalculados.lb), margin + 190, canvas.height - margin - lbHeight - 5);
-        }
-
-        // ====================================================================
-        // GESTÃO DE UI DE AUTENTICAÇÃO
-        // ====================================================================
-        const AuthUI = {
-            show: (viewId) => {
-                document.querySelectorAll('.login-view').forEach(el => el.classList.remove('active'));
-                document.getElementById('view-' + viewId).classList.add('active');
-                
-                // Limpar mensagens
-                document.querySelectorAll('.auth-error').forEach(el => { el.style.display = 'none'; el.textContent = ''; });
-                document.querySelectorAll('.auth-success').forEach(el => { el.style.display = 'none'; el.textContent = ''; });
-            },
-            showError: (viewId, msg) => {
-                const el = document.getElementById('msg-error-' + viewId);
-                el.textContent = msg;
-                el.style.display = 'block';
-                el.style.color = '#e53e3e';
-            },
-            showSuccess: (viewId, msg) => {
-                const el = document.getElementById('msg-success-' + viewId);
-                if(el) {
-                    el.textContent = msg;
-                    el.style.display = 'block';
-                }
-            }
-        };
-
-        function handleEnter(e, callback) {
-            if (e.key === 'Enter') callback();
-        }
-
-        // ====================================================================
-        // LÓGICA DE AUTENTICAÇÃO E FIREBASE
-        // ====================================================================
-        const AppAuth = {
-            login: () => {
-                const email = document.getElementById('login-email').value;
-                const pass = document.getElementById('login-password').value;
-                
-                if(!email || !pass) return AuthUI.showError('login', 'Preencha e-mail e senha.');
-                
-                const btn = document.querySelector('#view-login .btn-auth-primary');
-                btn.innerText = 'Entrando...';
-
-                // Definir persistência como SESSION (desloga ao fechar aba)
-                firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
-                .then(() => {
-                    return firebase.auth().signInWithEmailAndPassword(email, pass);
-                })
-                .catch(err => {
-                    AuthUI.showError('login', AppAuth.mapError(err.code));
-                    btn.innerText = 'Entrar';
-                });
-            },
-            
-            register: () => {
-                const name = document.getElementById('reg-name').value; // NOME ADICIONADO
-                const email = document.getElementById('reg-email').value;
-                const pass = document.getElementById('reg-password').value;
-                const conf = document.getElementById('reg-confirm').value;
-                
-                if(!name) return AuthUI.showError('register', 'Por favor, digite seu nome.');
-                if(!email || !pass) return AuthUI.showError('register', 'Preencha todos os campos.');
-                if(pass !== conf) return AuthUI.showError('register', 'Senhas não conferem.');
-                if(pass.length < 6) return AuthUI.showError('register', 'Senha deve ter no mínimo 6 caracteres.');
-
-                const btn = document.querySelector('#view-register .btn-auth-primary');
-                const originalText = btn.innerText;
-                btn.innerText = 'Criando...';
-
-                firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
-                .then(() => {
-                    return firebase.auth().createUserWithEmailAndPassword(email, pass);
-                })
-                .then((userCredential) => {
-                    // Atualiza o perfil com o nome do usuário
-                    return userCredential.user.updateProfile({
-                        displayName: name
-                    });
-                })
-                .catch(err => {
-                    AuthUI.showError('register', AppAuth.mapError(err.code));
-                    btn.innerText = originalText;
-                });
-            },
-            
-            loginGoogle: () => {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
-                .then(() => {
-                    return firebase.auth().signInWithPopup(provider);
-                })
-                .catch(err => {
-                    AuthUI.showError('login', 'Erro Google: ' + err.message);
-                });
-            },
-            
-            resetPassword: () => {
-                const email = document.getElementById('forgot-email').value;
-                if(!email) return AuthUI.showError('forgot', 'Digite seu e-mail cadastrado.');
-                
-                firebase.auth().sendPasswordResetEmail(email).then(() => {
-                    AuthUI.showSuccess('forgot', 'Link enviado para o e-mail!');
-                }).catch(err => {
-                    AuthUI.showError('forgot', AppAuth.mapError(err.code));
-                });
-            },
-            
-            logout: () => {
-                if(confirm("Deseja realmente sair?")) {
-                    firebase.auth().signOut().then(() => {
-                        window.location.reload(); // Recarrega para limpar estado da memória
-                    });
-                }
-            },
-            
-            mapError: (code) => {
-                switch(code) {
-                    case 'auth/invalid-email': return 'E-mail inválido.';
-                    case 'auth/user-disabled': return 'Usuário desativado.';
-                    case 'auth/user-not-found': return 'Usuário não encontrado.';
-                    case 'auth/wrong-password': return 'Senha incorreta.';
-                    case 'auth/email-already-in-use': return 'E-mail já cadastrado.';
-                    case 'auth/weak-password': return 'Senha muito fraca.';
-                    default: return 'Erro: ' + code;
-                }
-            }
-        };
-
-        function initFirebase() {
-            if (firebaseConfig.apiKey === "AIzaSyAsevkGkgVOwW_k2Se61UjlktCenI6q9wg") {
-                // Configuração padrão detectada, prosseguir.
-            }
-
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            
-            db = firebase.firestore();
-            auth = firebase.auth();
-
-            // Monitorar Estado de Autenticação
-            auth.onAuthStateChanged((user) => {
-                if (user) {
-                    // Usuário logado
-                    currentUser = user;
-                    
-                    // Atualizar UI
-                    document.getElementById('login-overlay').style.display = 'none';
-                    document.getElementById('app-container').style.display = 'block';
-                    
-                    // Exibir Nome do Usuário no Header (com fallback para e-mail)
-                    const displayName = user.displayName || user.email;
-                    document.getElementById('display-email').textContent = displayName;
-                    
-                    updateSyncStatus('online', 'Conectado');
-
-                    // Iniciar Sincronização de Dados
-                    initDataSync(user.uid);
-                } else {
-                    // Usuário deslogado
-                    currentUser = null;
-                    document.getElementById('login-overlay').style.display = 'flex';
-                    document.getElementById('app-container').style.display = 'none';
-                    
-                    // Resetar views de login
-                    AuthUI.show('login');
-                }
-            });
-        }
-
-        // Sincronização de Dados (Cloud -> Local na carga)
-        function initDataSync(uid) {
-            updateSyncStatus('syncing', 'Baixando dados...');
-            
-            // Cancelar listener anterior se houver
-            if(unsubscribeSnapshot) unsubscribeSnapshot();
-            
-            // Listener em tempo real no documento do usuário
-            unsubscribeSnapshot = db.collection('simulacoes').doc(uid).onSnapshot((doc) => {
-                updateSyncStatus('online', 'Sincronizado');
-                
-                if (doc.exists && !document.hidden) {
-                    const remote = doc.data();
-                    let updated = false;
-                    
-                    // Carrega dados atuais se existirem na nuvem
-                    if (remote.dadosAtuais && remote.dadosAtuais.dados) {
-                        dadosFinanceiros = remote.dadosAtuais.dados;
-                        dadosCalculados = remote.dadosAtuais.calculados || {};
-                        preencherFormulario(dadosFinanceiros);
-                        updated = true;
-                    }
-                    
-                    // Carrega histórico se existir
-                    if (remote.historico) {
-                        periodosHistorico = remote.historico;
-                        localStorage.setItem('erp_simulafinanc_v1_periodos', JSON.stringify(periodosHistorico));
-                        atualizarHistoricoPeriodos();
-                    }
-
-                    if(updated) {
-                        // Recalcula visualmente mas sem salvar novamente pra evitar loop
-                        // Apenas atualiza a UI
-                        const tempCalc = calcularIndicadoresSemSalvar(); 
-                        atualizarDashboard();
-                        atualizarAlertas();
-                        atualizarTabelaResumo();
-                        atualizarGraficos();
-                    }
-                }
-            }, (error) => {
-                console.error("Erro Sync:", error);
-                updateSyncStatus('offline', 'Erro conexão');
-            });
-        }
-        
-        // Função auxiliar para calcular sem disparar o sync (evita loops infinitos no onSnapshot)
-        function calcularIndicadoresSemSalvar() {
-             const cmv = dadosFinanceiros.ei + dadosFinanceiros.ccp - dadosFinanceiros.ef;
-             const lb = dadosFinanceiros.fv - cmv;
-             const mlb = dadosFinanceiros.fv > 0 ? (lb / dadosFinanceiros.fv) * 100 : 0;
-             const dt = dadosFinanceiros.cf + dadosFinanceiros.cv + dadosFinanceiros.oc;
-             const ll = lb - dt;
-             const mll = dadosFinanceiros.fv > 0 ? (ll / dadosFinanceiros.fv) * 100 : 0;
-             const mc = dadosFinanceiros.fv > 0 ? ((dadosFinanceiros.fv - dadosFinanceiros.cv - cmv) / dadosFinanceiros.fv) * 100 : 0;
-             const pe = mc > 0 ? dadosFinanceiros.cf / (mc / 100) : 0;
-             const em = (dadosFinanceiros.ei + dadosFinanceiros.ef) / 2;
-             const ge = em > 0 ? cmv / em : 0;
-             const tm = dadosFinanceiros.n > 0 ? dadosFinanceiros.fv / dadosFinanceiros.n : 0;
-             const fc = dadosFinanceiros.entradas - dadosFinanceiros.saidas;
-             const roi = dadosFinanceiros.inv > 0 ? (ll / dadosFinanceiros.inv) * 100 : 0;
-             const precoSugerido = dadosFinanceiros.unidadesCompradas > 0 ? (dadosFinanceiros.ccp / dadosFinanceiros.unidadesCompradas) * dadosFinanceiros.mk : 0;
-             
-             dadosCalculados = { cmv, lb, mlb, dt, ll, mll, mc, pe, em, ge, tm, fc, roi, precoSugerido };
-             return dadosCalculados;
-        }
-
-        // Sincronização (Local -> Cloud)
-        function syncWithFirebase() {
-            if (!currentUser || !db) return;
-            
-            updateSyncStatus('syncing', 'Salvando...');
-            
-            const payload = {
-                dadosAtuais: { 
-                    dados: dadosFinanceiros, 
-                    calculados: dadosCalculados 
-                },
-                historico: periodosHistorico,
-                lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                email: currentUser.email,
-                name: currentUser.displayName || null // Salva o nome também no banco de dados
-            };
-
-            db.collection('simulacoes').doc(currentUser.uid).set(payload, { merge: true })
-                .then(() => updateSyncStatus('online', 'Salvo na Nuvem'))
-                .catch(err => {
-                    console.error(err);
-                    updateSyncStatus('offline', 'Erro ao salvar');
-                });
-        }
-
-        function updateSyncStatus(status, text) {
-            const dot = document.getElementById('status-dot');
-            const txt = document.getElementById('status-text');
-            txt.innerText = text;
-            dot.className = 'status-dot ' + status;
-        }
-
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            // Inicializa Firebase e Auth
-            initFirebase();
-
-            // Mantém funcionamento offline inicial
-            carregarDadosSalvos();
-
-            // Adicionar event listeners para cálculo automático
-            const inputs = document.querySelectorAll('#financial-form input');
-            // ADICIONADO LISTENER PARA CAMPO DE NOTAS
-            const notes = document.querySelector('#consultant-notes');
-            let timeout;
-
-            const triggerCalc = () => {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    // Se não tiver fv, mas tiver nota, ainda queremos salvar a nota? 
-                    // Sim, melhor salvar.
-                    calcularIndicadores();
-                }, 800);
-            };
-
-            inputs.forEach(input => {
-                input.addEventListener('input', triggerCalc);
-            });
-            
-            if(notes) {
-                notes.addEventListener('input', triggerCalc);
-            }
-            
-            window.addEventListener('online', () => updateSyncStatus('online', 'Online'));
-            window.addEventListener('offline', () => updateSyncStatus('offline', 'Offline'));
         });
+
+        // Alternar visualização (Login/Cadastro/Recuperar)
+        function toggleAuthView(view) {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('forgot-form').classList.add('hidden');
+            document.getElementById('auth-msg').classList.add('hidden');
+            
+            document.getElementById(view + '-form').classList.remove('hidden');
+        }
+
+        // Login com Email/Senha
+        function fazerLogin() {
+            const email = document.getElementById('email-login').value;
+            const pass = document.getElementById('senha-login').value;
+            const msgDiv = document.getElementById('auth-msg');
+
+            if (!email || !pass) {
+                showAuthError("Preencha todos os campos.");
+                return;
+            }
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .catch((error) => {
+                    showAuthError(traduzirErroFirebase(error.code));
+                });
+        }
+
+        // Cadastro com Email/Senha + Nome
+        function fazerCadastro() {
+            const nome = document.getElementById('nome-cadastro').value;
+            const email = document.getElementById('email-cadastro').value;
+            const pass = document.getElementById('senha-cadastro').value;
+
+            if (!nome || !email || !pass) {
+                showAuthError("Preencha todos os campos.");
+                return;
+            }
+
+            auth.createUserWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    // Atualizar perfil com o nome
+                    return userCredential.user.updateProfile({
+                        displayName: nome
+                    });
+                })
+                .then(() => {
+                    // O onAuthStateChanged vai lidar com o resto
+                })
+                .catch((error) => {
+                    showAuthError(traduzirErroFirebase(error.code));
+                });
+        }
+
+        // Login Google
+        function googleLogin() {
+            auth.signInWithPopup(googleProvider)
+                .catch((error) => {
+                    showAuthError(traduzirErroFirebase(error.code));
+                });
+        }
+
+        // Recuperar Senha
+        function recuperarSenha() {
+            const email = document.getElementById('email-recuperacao').value;
+            const msgDiv = document.getElementById('auth-msg');
+
+            if (!email) {
+                showAuthError("Digite seu e-mail.");
+                return;
+            }
+
+            auth.sendPasswordResetEmail(email)
+                .then(() => {
+                    msgDiv.innerText = "Email de redefinição enviado! Verifique sua caixa de entrada.";
+                    msgDiv.className = "mt-4 text-center text-sm font-semibold text-green-600 block";
+                    setTimeout(() => toggleAuthView('login'), 3000);
+                })
+                .catch((error) => {
+                    showAuthError(traduzirErroFirebase(error.code));
+                });
+        }
+
+        function fazerLogout() {
+            auth.signOut();
+        }
+
+        function showAuthError(msg) {
+            const el = document.getElementById('auth-msg');
+            el.innerText = msg;
+            el.className = "mt-4 text-center text-sm font-semibold text-red-600 block";
+        }
+
+        function traduzirErroFirebase(code) {
+            switch (code) {
+                case 'auth/email-already-in-use': return 'Este e-mail já está em uso.';
+                case 'auth/invalid-email': return 'E-mail inválido.';
+                case 'auth/weak-password': return 'A senha deve ter pelo menos 6 caracteres.';
+                case 'auth/user-not-found': return 'Usuário não encontrado.';
+                case 'auth/wrong-password': return 'Senha incorreta.';
+                default: return 'Ocorreu um erro: ' + code;
+            }
+        }
+
+        // ----- LÓGICA DE DOAÇÃO -----
+        function selecionarValor(val) {
+            // Remove seleção anterior
+            document.querySelectorAll('.pix-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('valorPersonalizado').value = '';
+            
+            // Adiciona visual de seleção (apenas visual, pois a chave é fixa)
+            event.currentTarget.classList.add('selected');
+        }
+
+        function copiarPix() {
+            const key = "b4648948-d0a8-4402-81f4-8a4047fcf4e5";
+            navigator.clipboard.writeText(key).then(() => {
+                const btn = document.getElementById('btnCopiarPix');
+                const originalText = btn.innerHTML;
+                
+                btn.className = "w-full bg-green-600 text-white font-bold py-2 rounded transition flex items-center justify-center";
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i> Copiado!';
+                
+                setTimeout(() => {
+                    btn.className = "w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded transition flex items-center justify-center";
+                    btn.innerHTML = originalText;
+                }, 2000);
+            });
+        }
+
+        // ----- CÁLCULOS (Lógica Central - Mantida Integralmente) -----
+        const anexoI = [
+            { limite: 180000, aliq: 0.04, deducao: 0 },
+            { limite: 360000, aliq: 0.073, deducao: 5940 },
+            { limite: 720000, aliq: 0.095, deducao: 13860 },
+            { limite: 1800000, aliq: 0.107, deducao: 22500 },
+            { limite: 3600000, aliq: 0.143, deducao: 87300 },
+            { limite: 4800000, aliq: 0.19, deducao: 378000 }
+        ];
+
+        function formatCurrency(value) { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+
+        function getSimplesTax(rbt12, faturamentoMensal) {
+            let faixa = anexoI.find(f => rbt12 <= f.limite) || anexoI[anexoI.length - 1];
+            let aliq = ((rbt12 * faixa.aliq) - faixa.deducao) / rbt12;
+            if (aliq < 0.04 && rbt12 <= 180000) aliq = 0.04;
+            return { valor: faturamentoMensal * aliq, aliquota: aliq };
+        }
+
+        let chartInstance = null;
+
+        // Função para sincronizar o Faturamento Declarado com o Real
+        function syncFaturamento() {
+            let real = document.getElementById('faturamentoMensal').value;
+            // Sugere automaticamente copiando o valor
+            document.getElementById('faturamentoDeclarado').value = real;
+            calcular();
+        }
+
+        function calcular() {
+            // Obter Inputs
+            let fatRealInput = parseFloat(document.getElementById('faturamentoMensal').value) || 0;
+            let fatDeclInput = parseFloat(document.getElementById('faturamentoDeclarado').value) || 0;
+            
+            // Decidir qual faturamento usar para os IMPOSTOS
+            let modoCalculo = document.querySelector('input[name="baseCalculo"]:checked').value;
+            // fatReal = sempre usado para custos e margens reais
+            let fatReal = fatRealInput;
+            // fatFiscal = usado apenas para cálculo de tributos
+            let fatFiscal = (modoCalculo === 'real') ? fatRealInput : fatDeclInput;
+
+            let rbt12Input = document.getElementById('rbt12').value;
+            // RBT12 deve seguir a lógica fiscal (acumulado do que foi declarado)
+            let rbt12 = rbt12Input ? parseFloat(rbt12Input) : fatFiscal * 12;
+            
+            let margemBrutaPct = parseFloat(document.getElementById('margemBruta').value) || 0;
+            let despFixas = parseFloat(document.getElementById('despesasFixas').value) || 0;
+            let numFunc = parseFloat(document.getElementById('numFuncionarios').value) || 0;
+            let salario = parseFloat(document.getElementById('salarioMedio').value) || 0;
+            let icmsPresumidoAliq = (parseFloat(document.getElementById('icmsPresumido').value) || 0) / 100;
+            let patronalAliq = (parseFloat(document.getElementById('encargosPatronais').value) || 0) / 100;
+
+            // Custos (Baseados na realidade)
+            // Custo da mercadoria é sobre o que saiu de verdade
+            let cmv = fatReal * (1 - (margemBrutaPct / 100)); 
+            let provisoes = 0.33; 
+            let custoFolhaBase = (numFunc * salario) * (1 + provisoes);
+            let custoFolhaBruta = numFunc * salario;
+
+            // SIMPLES (Calculado sobre base Fiscal)
+            let dadosSimples = getSimplesTax(rbt12, fatFiscal);
+            let impostoSimples = dadosSimples.valor;
+            // Lucro Real = Faturamento Real - Custos Reais - Imposto (calculado sobre o fiscal)
+            let lucroSimples = fatReal - cmv - despFixas - custoFolhaBase - impostoSimples;
+            let margemSimples = fatReal > 0 ? (lucroSimples / fatReal) * 100 : 0;
+
+            // PRESUMIDO (Calculado sobre base Fiscal)
+            let pisCofins = fatFiscal * 0.0365;
+            let irpj = (fatFiscal * 0.08 * 0.15) + (fatFiscal * 0.08 > 20000 ? (fatFiscal * 0.08 - 20000) * 0.10 : 0);
+            let csll = (fatFiscal * 0.12 * 0.09);
+            let icms = fatFiscal * icmsPresumidoAliq;
+            let totalImpostosPresumido = pisCofins + irpj + csll + icms;
+            let custoPatronal = custoFolhaBruta * patronalAliq;
+            // Lucro Real
+            let lucroPresumido = fatReal - cmv - despFixas - custoFolhaBase - custoPatronal - totalImpostosPresumido;
+            let margemPresumido = fatReal > 0 ? (lucroPresumido / fatReal) * 100 : 0;
+
+            // PONTO DE EQUILÍBRIO (Mantendo lógica Real para saúde financeira)
+            let totalCustosFixos = despFixas + custoFolhaBase;
+            // Margem de contribuição aproximada usando a alíquota efetiva do simples
+            let margemContribuicaoPct = (margemBrutaPct / 100) - dadosSimples.aliquota;
+            let pontoEquilibrio = margemContribuicaoPct > 0 ? totalCustosFixos / margemContribuicaoPct : fatReal * 10;
+
+            // UI Updates - PE
+            document.getElementById('valPontoEquilibrio').innerText = formatCurrency(pontoEquilibrio);
+            let percentualPE = fatReal > 0 ? (fatReal / pontoEquilibrio) * 100 : 0;
+            let bar = document.getElementById('progressBarPE');
+            let statusPE = document.getElementById('statusPE');
+            document.getElementById('percPE').innerText = percentualPE.toFixed(0) + "% da meta";
+
+            if (percentualPE >= 100) {
+                bar.style.width = '100%';
+                bar.className = 'progress-bar bg-teal-500';
+                statusPE.innerText = "Zona de Lucro";
+                statusPE.className = "text-teal-700 font-bold";
+            } else {
+                bar.style.width = Math.min(percentualPE, 100) + '%';
+                bar.className = 'progress-bar bg-orange-400';
+                statusPE.innerText = "Abaixo do Ponto de Equilíbrio";
+                statusPE.className = "text-orange-600 font-bold";
+            }
+
+            // UI Updates - Valores
+            document.getElementById('resSimplesImposto').innerText = formatCurrency(impostoSimples);
+            document.getElementById('resSimplesAliq').innerText = (dadosSimples.aliquota * 100).toFixed(2) + '%';
+            document.getElementById('resSimplesLucro').innerText = formatCurrency(lucroSimples);
+            document.getElementById('resSimplesMargem').innerText = margemSimples.toFixed(1) + '%';
+
+            document.getElementById('resPresumidoImposto').innerText = formatCurrency(totalImpostosPresumido);
+            document.getElementById('resPresumidoCPP').innerText = formatCurrency(custoPatronal);
+            document.getElementById('resPresumidoLucro').innerText = formatCurrency(lucroPresumido);
+            document.getElementById('resPresumidoMargem').innerText = margemPresumido.toFixed(1) + '%';
+
+            // Detalhes Presumido
+            document.getElementById('detPisCofins').innerText = formatCurrency(pisCofins);
+            document.getElementById('detIrCsll').innerText = formatCurrency(irpj + csll);
+            document.getElementById('detIcms').innerText = formatCurrency(icms);
+            document.getElementById('detInssPatronal').innerText = formatCurrency(custoPatronal);
+
+            // Recomendação
+            let diferenca = lucroSimples - lucroPresumido;
+            const recBox = document.getElementById('recomendacaoBox');
+            const recTitle = document.getElementById('recomendacaoTitulo');
+            const recText = document.getElementById('recomendacaoTexto');
+
+            if (lucroSimples > lucroPresumido) {
+                recBox.className = "p-4 mb-6 rounded-lg text-center border-2 border-green-500 bg-green-50 text-green-900";
+                recTitle.innerText = "🏆 Vencedor: Simples Nacional";
+                recText.innerHTML = `Sua empresa economiza <strong>${formatCurrency(diferenca)}</strong> por mês neste regime.`;
+            } else {
+                recBox.className = "p-4 mb-6 rounded-lg text-center border-2 border-orange-500 bg-orange-50 text-orange-900";
+                recTitle.innerText = "🏆 Vencedor: Lucro Presumido";
+                recText.innerHTML = `Vale a pena migrar! Economia estimada de <strong>${formatCurrency(Math.abs(diferenca))}</strong>.`;
+            }
+
+            // Chart
+            if(chartInstance) chartInstance.destroy();
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: ['Simples Nacional', 'Lucro Presumido'], datasets: [{ label: 'Lucro Líquido (R$)', data: [lucroSimples, lucroPresumido], backgroundColor: ['#22c55e', '#f97316'], borderRadius: 5 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+            });
+
+            // Ponto de Virada Loop (Baseado no fiscal para determinar mudança de alíquota)
+            let pontoVirada = 0; let achou = false;
+            for (let f = 50000; f <= 800000; f += 5000) {
+                let rbt = f * 12; 
+                // Simulando que f é o valor declarado e real são iguais para a projeção
+                let impS = getSimplesTax(rbt, f).valor;
+                let lucS = f - (f*(1-margemBrutaPct/100)) - despFixas - custoFolhaBase - impS;
+                let impP = (f * 0.0365) + (f * 0.08 * 0.15) + (f * 0.12 * 0.09) + (f * icmsPresumidoAliq);
+                if ((f*0.08) > 20000) impP += ((f*0.08)-20000)*0.10;
+                let lucP = f - (f*(1-margemBrutaPct/100)) - despFixas - custoFolhaBase - custoPatronal - impP;
+                if (lucP > lucS) { pontoVirada = f; achou = true; break; }
+            }
+            document.getElementById('pontoViradaVal').innerText = achou ? formatCurrency(pontoVirada) + "/mês" : "Acima de 800k";
+        }
+
+        // ----- RELATÓRIO DETALHADO PDF -----
+        function gerarRelatorioDetalhado() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Cores
+            const corAzul = [30, 64, 175]; // Blue 800
+            const corCinza = [75, 85, 99]; // Gray 600
+            const corPreto = [17, 24, 39]; // Gray 900
+            
+            let y = 20; // Cursor vertical
+
+            // Captura dados atuais
+            const fatRealInput = parseFloat(document.getElementById('faturamentoMensal').value) || 0;
+            const fatDeclInput = parseFloat(document.getElementById('faturamentoDeclarado').value) || 0;
+            const modoCalculo = document.querySelector('input[name="baseCalculo"]:checked').value;
+            // Para o relatório, mostramos o Real como base do cenário, mas indicamos o declarado se diferente
+            const fatDisplay = fatRealInput;
+
+            const func = document.getElementById('numFuncionarios').value;
+            const simplesVal = document.getElementById('resSimplesImposto').innerText;
+            const presumidoVal = document.getElementById('resPresumidoImposto').innerText;
+            const custoPatronal = document.getElementById('resPresumidoCPP').innerText;
+            const winner = document.getElementById('recomendacaoTitulo').innerText.replace("🏆 Vencedor: ", "");
+
+            // CABEÇALHO
+            doc.setFillColor(...corAzul);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "bold");
+            doc.text("Relatório de Estratégia Tributária", 15, 20);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text("Análise Simplificada: Varejo e Comércio", 15, 28);
+            doc.setFontSize(10);
+            doc.text(`Data da simulação: ${new Date().toLocaleDateString()}`, 15, 35);
+
+            y = 50;
+
+            // 1. CENÁRIO ATUAL
+            doc.setTextColor(...corAzul);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("1. Seu Cenário Simulado", 15, y);
+            y += 8;
+
+            doc.setTextColor(...corPreto);
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Faturamento Real: R$ ${fatRealInput.toLocaleString('pt-BR')}`, 15, y);
+            
+            if (modoCalculo === 'declarado') {
+                doc.text(`(Base de Impostos Declarada: R$ ${fatDeclInput.toLocaleString('pt-BR')})`, 110, y);
+            }
+            y += 6;
+            
+            doc.text(`Equipe: ${func} funcionário(s)`, 15, y);
+            y += 10;
+
+            // 2. RESULTADO COMPARATIVO
+            doc.setFillColor(240, 240, 240);
+            doc.rect(15, y, 180, 35, 'F'); // Box cinza
+            y += 8;
+            
+            doc.setFont("helvetica", "bold");
+            doc.text(`Melhor Regime para você hoje: ${winner}`, 20, y);
+            y += 8;
+            
+            doc.setFont("helvetica", "normal");
+            doc.text(`Custo no Simples Nacional: ${simplesVal} (Guia Única)`, 20, y);
+            y += 6;
+            doc.text(`Custo no Lucro Presumido: ${presumidoVal} (Várias Guias) + ${custoPatronal} (INSS Extra)`, 20, y);
+            y += 20;
+
+            // 3. EXPLICAÇÃO DIDÁTICA (O que significa?)
+            doc.setTextColor(...corAzul);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("2. Entendendo a Diferença (Sem Contabilês)", 15, y);
+            y += 8;
+
+            doc.setTextColor(...corCinza);
+            doc.setFontSize(10);
+            const textSimples = "O Simples Nacional funciona como um 'Combo' de fast-food. Você paga um valor único (DAS) e ali dentro já estão inclusos 8 impostos diferentes, inclusive o INSS da parte da empresa sobre os funcionários. Por isso, para quem tem folha de pagamento, costuma ser mais barato.";
+            const linesSimples = doc.splitTextToSize(textSimples, 180);
+            doc.text(linesSimples, 15, y);
+            y += (linesSimples.length * 5) + 4;
+
+            const textPresumido = "O Lucro Presumido é 'à la carte'. Você paga cada imposto separadamente. O grande vilão aqui é a Folha de Pagamento: além do salário, você paga +20% de INSS Patronal para o governo, coisa que no Simples é isento.";
+            const linesPresumido = doc.splitTextToSize(textPresumido, 180);
+            doc.text(linesPresumido, 15, y);
+            y += (linesPresumido.length * 5) + 10;
+
+            // 4. EXEMPLO PRÁTICO: CUSTO DE FUNCIONÁRIO
+            doc.setTextColor(...corAzul);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("3. Exemplo Prático: Quanto custa um funcionário?", 15, y);
+            y += 8;
+
+            doc.setTextColor(...corCinza);
+            doc.setFont("helvetica", "normal");
+            doc.text("Imagine que você contrate alguém por R$ 2.000,00 na carteira. Veja a realidade:", 15, y);
+            y += 8;
+
+            // Tabela simples desenhada
+            doc.setDrawColor(200);
+            doc.line(15, y, 150, y); 
+            y += 5;
+            doc.setFont("helvetica", "bold");
+            doc.text("Item", 15, y); doc.text("Valor Aprox.", 100, y);
+            y += 3;
+            doc.line(15, y, 150, y);
+            y += 6;
+
+            doc.setFont("helvetica", "normal");
+            doc.text("Salário na Carteira", 15, y); doc.text("R$ 2.000,00", 100, y); y += 6;
+            doc.text("FGTS (8% - Pago todo mês)", 15, y); doc.text("R$ 160,00", 100, y); y += 6;
+            doc.text("Provisão de Férias + 1/3 (Guardar)", 15, y); doc.text("R$ 222,00", 100, y); y += 6;
+            doc.text("Provisão de 13º Salário (Guardar)", 15, y); doc.text("R$ 166,00", 100, y); y += 6;
+            
+            doc.setFont("helvetica", "bold");
+            doc.text("CUSTO REAL MENSAL (Simples)", 15, y); doc.text("R$ 2.548,00", 100, y); y += 8;
+            
+            doc.setTextColor(220, 38, 38); // Vermelho
+            doc.text("CUSTO REAL (Lucro Presumido)", 15, y); doc.text("R$ 3.108,00 (+ INSS 28%)", 100, y); 
+            
+            doc.setTextColor(...corCinza);
+            y += 15;
+
+            // 5. CUSTOS OCULTOS
+            doc.setTextColor(...corAzul);
+            doc.setFontSize(14);
+            doc.text("4. Custos Ocultos (Fora da Guia de Imposto)", 15, y);
+            y += 8;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            
+            const hiddenCosts = [
+                "• Certificado Digital (e-CNPJ): Obrigatório para emitir nota (~R$ 200/ano).",
+                "• Alvará e Taxas: Prefeitura e Bombeiros cobram taxas anuais.",
+                "• ICMS na Compra: Se comprar de fora do estado, pode vir cobrança de DIFAL."
+            ];
+            
+            hiddenCosts.forEach(item => {
+                doc.text(item, 15, y);
+                y += 6;
+            });
+
+            // RODAPÉ
+            y = 280; // Final da página A4
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text("Este relatório é uma simulação educativa e não substitui a contabilidade oficial.", 105, y, { align: "center" });
+
+            // Salvar
+            doc.save("Relatorio_Consultoria_Tributaria.pdf");
+        }
+
+        // ----- AUXILIARES UI -----
+        function switchTab(t) {
+            ['calc', 'extras'].forEach(x => {
+                document.getElementById('tab-'+x).style.display = (x===t ? 'block':'none');
+                document.getElementById('btn-'+x).className = (x===t ? 'tab-btn active whitespace-nowrap' : 'tab-btn whitespace-nowrap');
+            });
+        }
+        function toggleTooltip(e, id) {
+            e.stopPropagation();
+            document.querySelectorAll('.tooltip-content').forEach(t => t.style.display = 'none');
+            const el = document.getElementById(id);
+            el.style.display = (el.style.display === 'block' ? 'none' : 'block');
+        }
+        function closeAllTooltips() { document.querySelectorAll('.tooltip-content').forEach(t => t.style.display = 'none'); }
+
+        // Inicialização: Se tiver usuário logado cacheado, o Firebase chamará o onAuthStateChanged.
+        // Se não, o Auth Screen já começa visível.
+        // O window.onload original foi removido pois a inicialização depende do Auth.
     </script>
 </body>
 </html>
